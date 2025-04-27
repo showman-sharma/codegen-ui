@@ -6,6 +6,8 @@ import 'ace-builds/src-noconflict/theme-twilight';
 import React, { useState } from 'react';
 import './index.css';
 
+const API_BASE = process.env.REACT_APP_API_URL;
+
 export default function CodeGenerationUI() {
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState(null); // 'scot' | 'refine'
@@ -22,7 +24,7 @@ export default function CodeGenerationUI() {
   async function generateCode() {
     setLoadingCode(true);
     try {
-      const res = await fetch('/api/generate-code', {
+      const res = await fetch('${API_BASE}/generate-code', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, numSamples }),
       });
@@ -38,7 +40,7 @@ export default function CodeGenerationUI() {
   async function generateScot() {
     setMode('scot'); setLoadingScot(true);
     try {
-      const res = await fetch('/api/generate-scot', {
+      const res = await fetch('${API_BASE}/generate-scot', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
@@ -54,7 +56,7 @@ export default function CodeGenerationUI() {
   async function implementScot() {
     setLoadingCode(true);
     try {
-      const res = await fetch('/api/generate-code', {
+      const res = await fetch('${API_BASE}/generate-code', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, scot }),
       });
@@ -70,7 +72,7 @@ export default function CodeGenerationUI() {
   async function suggestRefinement() {
     setMode('refine'); setLoadingRefine(true);
     try {
-      const res = await fetch('/api/suggest-refine', {
+      const res = await fetch('${API_BASE}/suggest-refine', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, code }),
       });
@@ -86,7 +88,7 @@ export default function CodeGenerationUI() {
   async function refineFromSuggestion() {
     setLoadingCode(true);
     try {
-      const res = await fetch('/api/refine-code', {
+      const res = await fetch('${API_BASE}/refine-code', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, suggestion }),
       });
@@ -102,7 +104,7 @@ export default function CodeGenerationUI() {
   async function autoEnhance() {
     setLoadingCode(true);
     try {
-      const res = await fetch('/api/auto-enhance', {
+      const res = await fetch('${API_BASE}/auto-enhance', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, code }),
       });

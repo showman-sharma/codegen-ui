@@ -1,0 +1,14 @@
+
+# Python (backend)
+.venv/
+
+# Build outputs
+build/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
