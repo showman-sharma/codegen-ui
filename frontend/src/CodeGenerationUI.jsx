@@ -152,10 +152,13 @@ export default function CodeGenerationUI() {
             <option value="gpt-4.1-nano">GPT-4.1 nano</option>
             <option value="gpt-4o-mini">GPT-4o mini</option>
           </select>
-          <label className="switch">
-            <input type="checkbox" checked={darkMode} onChange={toggleTheme} />
-            <span className="slider round"></span>
-          </label>
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {darkMode ? '🌙' : '🔆'}
+          </button>
         </div>
       </header>
 
