@@ -9,7 +9,7 @@ import './index.css';
 import logoDark from './assets/logo-dark.png';
 import logoLight from './assets/logo-light.png';
 
-const API_BASE = process.env.REACT_APP_API_URL ||''+ '/api';
+const API_BASE = (process.env.REACT_APP_API_URL ||'')+ '/api';
 
 export default function CodeGenerationUI() {
   const [prompt, setPrompt] = useState('');
