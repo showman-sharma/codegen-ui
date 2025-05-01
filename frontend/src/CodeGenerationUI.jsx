@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import './index.css';
 import logoDark from './assets/logo-dark.png';
 import logoLight from './assets/logo-light.png';
+import ReactMarkdown from 'react-markdown';
 
 const API_BASE = (process.env.REACT_APP_API_URL || '') + '/api';
 
@@ -220,13 +221,16 @@ export default function CodeGenerationUI() {
           <div className="panel-content">
             {(mode === 'scot' || mode === 'refine' || mode === 'explain') && (
               <>
-                <textarea
-                  className="panel-text"
-                  value={mode === 'scot' ? scot : suggestion}
-                  onChange={e => mode === 'scot' ? setScot(e.target.value) : setSuggestion(e.target.value)}
-                  disabled={mode === 'scot' ? loadingScot : loadingRefine}
-                />
-                {(loadingScot || loadingRefine) && <div className="overlay"><div className="spinner" /></div>}
+                <div className="markdown-view">
+                  <ReactMarkdown>
+                    {mode === 'scot' ? scot : suggestion}
+                  </ReactMarkdown>
+                </div>
+
+                {(loadingScot || loadingRefine) && (
+                  <div className="overlay"><div className="spinner" /></div>
+                )}
+
                 {(mode === 'scot' && scot && !loadingScot) && (
                   <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>Implement SCoT</button>
                 )}

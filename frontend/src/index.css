@@ -157,20 +157,20 @@ input:checked + .slider:before {
   text-align: center;
 }
 
-.side-panel {
+/* .side-panel {
   flex: 1.3;
   display: flex;
   flex-direction: column;
   padding: 1rem;
   border-left: 1px solid #333;
-}
-
+} */
+/* 
 .panel-content {
   flex: 1;
   position: relative;
   display: flex;
   flex-direction: column;
-}
+} */
 
 .panel-text {
   flex: 1;
@@ -299,4 +299,63 @@ input:checked + .slider:before {
 
 .copy-btn.copied {
   background: #2d8f2d;
+}
+
+.panel-content {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* CRITICAL for scrollable child */
+  gap: 0.75rem; /* Add spacing between markdown and buttons */
+}
+
+.markdown-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); /* subtle border */
+  background-color: rgba(255, 255, 255, 0.03); /* slightly lifted background */
+}
+
+/* Light theme */
+.app.light .markdown-view {
+  background-color: #ffffff;
+  color: #222;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark theme */
+.app.dark .markdown-view {
+  background-color: #2b2b2b;
+  color: #f5f5f5;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Inline code and blocks */
+.markdown-view code {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.markdown-view pre {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+
+.side-panel {
+  flex: 1.3;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  border-left: 1px solid #333;
+  min-height: 0; /* Enables inner scroll behavior */
 }
