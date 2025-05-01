@@ -11,7 +11,8 @@ from prompters import (
     generate_one_completion_SCoT,
     generate_one_completion_self_consistency,
     PHP_Enhancer,
-    SR_Enhancer
+    suggest_refinement,
+    refine_code
 )
 
 load_dotenv()
@@ -49,7 +50,7 @@ def api_suggest_refine():
     code = data.get('code', '')
     prompt = data.get('prompt', '')
     model = data.get('model', 'gpt-3.5-turbo')
-    suggestion = SR_Enhancer(client, code, prompt, max_iterations=1, model=model)
+    suggestion = suggest_refinement(client, code, prompt, model=model)
     return jsonify({"suggestion": suggestion})
 
 @app.route('/api/refine-code', methods=['POST'])
@@ -58,7 +59,7 @@ def api_refine_code():
     code = data.get('code', '')
     suggestion = data.get('suggestion', '')
     model = data.get('model', 'gpt-3.5-turbo')
-    refined = PHP_Enhancer(client, code, suggestion, max_iterations=1, model=model)
+    refined = refine_code(client, code, suggestion, model=model)
     return jsonify({"refinedCode": refined})
 
 @app.route('/api/auto-enhance', methods=['POST'])

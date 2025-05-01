@@ -26,6 +26,7 @@ export default function CodeGenerationUI() {
   const [loadingCode, setLoadingCode] = useState(false);
 
   const toggleTheme = () => setDarkMode(prev => !prev);
+  const [copied, setCopied] = useState(false);
 
   const fetchOptions = (body) => ({
     method: 'POST',
@@ -135,6 +136,18 @@ export default function CodeGenerationUI() {
       <div className="main-content">
         <div className="editor-pane">
           <div className="editor-area">
+            <div className="copy-button-container">
+              <button
+                className={`copy-btn ${copied ? 'copied' : ''}`}
+                onClick={() => {
+                  navigator.clipboard.writeText(code);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
             <AceEditor
               mode="python"
               theme={darkMode ? 'twilight' : 'textmate'}

@@ -240,3 +240,63 @@ input:checked + .slider:before {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Light mode */
+.app.light .panel-text {
+  background-color: #f9f9f9;
+  color: #222;
+}
+
+/* Dark mode */
+.app.dark .panel-text {
+  background-color: #1e1e1e;
+  color: #ddd;
+}
+
+/* Optional: make side panel background match theme */
+.app.light .side-panel {
+  background-color: #fff;
+}
+
+.app.dark .side-panel {
+  background-color: #2a2a2a;
+}
+
+/* Prompt box styles */
+.app.light .prompt-text {
+  background-color: #f9f9f9;
+  color: #222;
+  border: 1px solid #ccc;
+}
+
+.app.dark .prompt-text {
+  background-color: #1e1e1e;
+  color: #ddd;
+  border: 1px solid #444;
+}
+
+.copy-button-container {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+.copy-btn {
+  background: #444;
+  color: #fff;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.copy-btn:hover {
+  background: #666;
+}
+
+.copy-btn.copied {
+  background: #2d8f2d;
+}
