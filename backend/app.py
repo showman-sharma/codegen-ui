@@ -12,7 +12,9 @@ from prompters import (
     generate_one_completion_self_consistency,
     PHP_Enhancer,
     suggest_refinement,
-    refine_code
+    refine_code,
+    explain_code,
+    add_comments_to_code
 )
 
 load_dotenv()
@@ -70,6 +72,22 @@ def api_auto_enhance():
     model = data.get('model', 'gpt-3.5-turbo')
     enhanced = PHP_Enhancer(client, code, prompt, max_iterations=1, model=model)
     return jsonify({"enhancedCode": enhanced})
+
+@app.route('/api/explain-code', methods=['POST'])
+def api_explain_code():
+    data = request.json or {}
+    code = data.get('code', '')
+    model = data.get('model', 'gpt-3.5-turbo')
+    explanation = explain_code(client, code, model=model)
+    return jsonify({"explanation": explanation})
+
+@app.route('/api/comment-code', methods=['POST'])
+def api_comment_code():
+    data = request.json or {}
+    code = data.get('code', '')
+    model = data.get('model', 'gpt-3.5-turbo')
+    commented = add_comments_to_code(client, code, model=model)
+    return jsonify({"commentedCode": commented})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

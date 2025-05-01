@@ -181,3 +181,27 @@ def generate_one_completion_self_consistency(client, prompt: str, num_samples: i
         normalized_to_original.setdefault(norm, []).append(code)
     most_common_norm, _ = Counter(normalized_forms).most_common(1)[0]
     return normalized_to_original[most_common_norm][0]
+
+def explain_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "You are a Python mentor."},
+            {"role": "user", "content": f"Explain the following code in detail:\n\n```python\n{code}\n```"}
+        ],
+        temperature=0.1,
+        max_tokens=400
+    )
+    return response.choices[0].message.content.strip()
+
+def add_comments_to_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "You are a Python developer."},
+            {"role": "user", "content": f"Add helpful inline comments to this Python code:\n\n```python\n{code}\n```"}
+        ],
+        temperature=0.1,
+        max_tokens=400
+    )
+    return extract_clean_code(response.choices[0].message.content.strip())

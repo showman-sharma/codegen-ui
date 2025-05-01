@@ -9,7 +9,7 @@ import './index.css';
 import logoDark from './assets/logo-dark.png';
 import logoLight from './assets/logo-light.png';
 
-const API_BASE = (process.env.REACT_APP_API_URL ||'')+ '/api';
+const API_BASE = (process.env.REACT_APP_API_URL || '') + '/api';
 
 export default function CodeGenerationUI() {
   const [prompt, setPrompt] = useState('');
@@ -20,13 +20,13 @@ export default function CodeGenerationUI() {
   const [numSamples, setNumSamples] = useState(1);
   const [model, setModel] = useState('gpt-3.5-turbo');
   const [darkMode, setDarkMode] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const [loadingScot, setLoadingScot] = useState(false);
   const [loadingRefine, setLoadingRefine] = useState(false);
   const [loadingCode, setLoadingCode] = useState(false);
 
   const toggleTheme = () => setDarkMode(prev => !prev);
-  const [copied, setCopied] = useState(false);
 
   const fetchOptions = (body) => ({
     method: 'POST',
@@ -112,12 +112,37 @@ export default function CodeGenerationUI() {
     }
   }
 
+  async function explainCode() {
+    setMode('explain'); setLoadingRefine(true);
+    try {
+      const res = await fetch(`${API_BASE}/explain-code`, fetchOptions({ code }));
+      const { explanation } = await res.json();
+      setSuggestion(explanation);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingRefine(false);
+    }
+  }
+
+  async function addComments() {
+    setLoadingCode(true);
+    try {
+      const res = await fetch(`${API_BASE}/comment-code`, fetchOptions({ code }));
+      const { commentedCode } = await res.json();
+      setCode(commentedCode);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCode(false);
+    }
+  }
+
   return (
     <div className={darkMode ? 'app dark' : 'app light'}>
       <header className="header-bar">
         <div className="left-header">
           <img src={darkMode ? logoDark : logoLight} alt="Logo" className="logo" />
-
           <h1 className="title">CODEGEN-UI</h1>
         </div>
         <div className="right-header">
@@ -193,43 +218,34 @@ export default function CodeGenerationUI() {
 
         <div className="side-panel">
           <div className="panel-content">
-            {mode === 'scot' && (
+            {(mode === 'scot' || mode === 'refine' || mode === 'explain') && (
               <>
                 <textarea
                   className="panel-text"
-                  value={scot}
-                  onChange={e => setScot(e.target.value)}
-                  disabled={loadingScot}
+                  value={mode === 'scot' ? scot : suggestion}
+                  onChange={e => mode === 'scot' ? setScot(e.target.value) : setSuggestion(e.target.value)}
+                  disabled={mode === 'scot' ? loadingScot : loadingRefine}
                 />
-                {loadingScot && <div className="overlay"><div className="spinner" /></div>}
-                {scot && !loadingScot && (
+                {(loadingScot || loadingRefine) && <div className="overlay"><div className="spinner" /></div>}
+                {(mode === 'scot' && scot && !loadingScot) && (
                   <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>Implement SCoT</button>
                 )}
-              </>
-            )}
-            {mode === 'refine' && (
-              <>
-                <textarea
-                  className="panel-text"
-                  value={suggestion}
-                  onChange={e => setSuggestion(e.target.value)}
-                  disabled={loadingRefine}
-                />
-                {loadingRefine && <div className="overlay"><div className="spinner" /></div>}
-                {suggestion && !loadingRefine && (
+                {(mode === 'refine' && suggestion && !loadingRefine) && (
                   <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>Refine Code</button>
+                )}
+                {(mode === 'explain' && suggestion && !loadingRefine) && (
+                  <button className="btn action-panel-btn" onClick={addComments} disabled={loadingCode}>Add Comments</button>
                 )}
               </>
             )}
             {!mode && (
-              <div className="placeholder">
-                Choose an action below
-              </div>
+              <div className="placeholder">Choose an action below</div>
             )}
           </div>
           <div className="action-row">
             <button className="btn flex-btn" onClick={generateScot} disabled={loadingScot || loadingCode}>Generate SCoT</button>
             <button className="btn flex-btn" onClick={suggestRefinement} disabled={loadingRefine || loadingCode}>Suggest Refinement</button>
+            <button className="btn flex-btn" onClick={explainCode} disabled={loadingRefine || loadingCode}>Explain Code</button>
           </div>
         </div>
       </div>
