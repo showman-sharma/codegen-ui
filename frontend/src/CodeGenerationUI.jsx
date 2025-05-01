@@ -2,15 +2,18 @@ import AceEditor from 'react-ace';
 
 import 'ace-builds/src-noconflict/mode-python';
 import 'ace-builds/src-noconflict/theme-twilight';
+import 'ace-builds/src-noconflict/theme-textmate';
 
 import React, { useState } from 'react';
 import './index.css';
+import logoDark from './assets/logo-dark.png';
+import logoLight from './assets/logo-light.png';
 
-const API_BASE = process.env.REACT_APP_API_URL || '';
+const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
 export default function CodeGenerationUI() {
   const [prompt, setPrompt] = useState('');
-  const [mode, setMode] = useState(null); // 'scot' | 'refine'
+  const [mode, setMode] = useState(null);
   const [scot, setScot] = useState('');
   const [suggestion, setSuggestion] = useState('');
   const [code, setCode] = useState('');
@@ -24,13 +27,16 @@ export default function CodeGenerationUI() {
 
   const toggleTheme = () => setDarkMode(prev => !prev);
 
+  const fetchOptions = (body) => ({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, model }),
+  });
+
   async function generateCode() {
     setLoadingCode(true);
     try {
-      const res = await fetch(`${API_BASE}/generate-code`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, numSamples, model }),
-      });
+      const res = await fetch(`${API_BASE}/generate-code`, fetchOptions({ prompt, numSamples }));
       const { code: newCode } = await res.json();
       setCode(newCode);
     } catch (e) {
@@ -43,10 +49,7 @@ export default function CodeGenerationUI() {
   async function generateScot() {
     setMode('scot'); setLoadingScot(true);
     try {
-      const res = await fetch(`${API_BASE}/generate-scot`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, model }),
-      });
+      const res = await fetch(`${API_BASE}/generate-scot`, fetchOptions({ prompt }));
       const { scot: newScot } = await res.json();
       setScot(newScot);
     } catch (e) {
@@ -59,10 +62,7 @@ export default function CodeGenerationUI() {
   async function implementScot() {
     setLoadingCode(true);
     try {
-      const res = await fetch(`${API_BASE}/generate-code`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, scot, model }),
-      });
+      const res = await fetch(`${API_BASE}/generate-code`, fetchOptions({ prompt, scot }));
       const { code: newCode } = await res.json();
       setCode(newCode);
     } catch (e) {
@@ -75,10 +75,7 @@ export default function CodeGenerationUI() {
   async function suggestRefinement() {
     setMode('refine'); setLoadingRefine(true);
     try {
-      const res = await fetch(`${API_BASE}/suggest-refine`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, code, model }),
-      });
+      const res = await fetch(`${API_BASE}/suggest-refine`, fetchOptions({ prompt, code }));
       const { suggestion: newSuggestion } = await res.json();
       setSuggestion(newSuggestion);
     } catch (e) {
@@ -91,10 +88,7 @@ export default function CodeGenerationUI() {
   async function refineFromSuggestion() {
     setLoadingCode(true);
     try {
-      const res = await fetch(`${API_BASE}/refine-code`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, suggestion, model }),
-      });
+      const res = await fetch(`${API_BASE}/refine-code`, fetchOptions({ code, suggestion }));
       const { refinedCode } = await res.json();
       setCode(refinedCode);
     } catch (e) {
@@ -107,10 +101,7 @@ export default function CodeGenerationUI() {
   async function autoEnhance() {
     setLoadingCode(true);
     try {
-      const res = await fetch(`${API_BASE}/auto-enhance`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, code, model }),
-      });
+      const res = await fetch(`${API_BASE}/auto-enhance`, fetchOptions({ prompt, code }));
       const { enhancedCode } = await res.json();
       setCode(enhancedCode);
     } catch (e) {
@@ -122,66 +113,55 @@ export default function CodeGenerationUI() {
 
   return (
     <div className={darkMode ? 'app dark' : 'app light'}>
-      {/* Header */}
       <header className="header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <select
-            value={model}
-            onChange={e => setModel(e.target.value)}
-            style={{ fontSize: '0.9rem', padding: '4px' }}>
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-            <option value="gpt-4">GPT-4</option>
-            <option value="gpt-4o">GPT-4o</option>
+        <div className="left-header">
+          <img src={darkMode ? logoDark : logoLight} alt="Logo" className="logo" />
+
+          <h1 className="title">CODEGEN-UI</h1>
+        </div>
+        <div className="right-header">
+          <select value={model} onChange={e => setModel(e.target.value)} className="model-select">
+            <option value="gpt-3.5-turbo">GPT-3.5 turbo</option>
+            <option value="gpt-4.1-nano">GPT-4.1 nano</option>
+            <option value="gpt-4o-mini">GPT-4o mini</option>
           </select>
           <label className="switch">
             <input type="checkbox" checked={darkMode} onChange={toggleTheme} />
             <span className="slider round"></span>
           </label>
         </div>
-        <h1 style={{ fontFamily: 'Segoe UI, sans-serif', fontSize: '1.5rem', margin: 0 }}>CodeGem</h1>
-        <div />
       </header>
 
-      {/* Editor Pane */}
-      <div className="editor-pane">
-        <div className="editor-area" style={{ position: 'relative' }}>
-          <AceEditor
-            mode="python"
-            theme={darkMode ? 'twilight' : 'textmate'}
-            value={code}
-            onChange={setCode}
-            name="python-editor"
-            width="100%"
-            height="100%"
-            readOnly={loadingCode}
-            setOptions={{ useWorker: false }}
-            editorProps={{ $blockScrolling: true }}
-            fontSize={14}
-          />
-          {loadingCode && <div className="overlay"><div className="spinner" /></div>}
-          <button
-            className="btn auto-btn"
-            onClick={autoEnhance}
-            disabled={loadingCode}
-            style={{ position: 'absolute', bottom: 16, right: 16 }}>
-            Auto-Enhance
-          </button>
-        </div>
+      <div className="main-content">
+        <div className="editor-pane">
+          <div className="editor-area">
+            <AceEditor
+              mode="python"
+              theme={darkMode ? 'twilight' : 'textmate'}
+              value={code}
+              onChange={setCode}
+              name="python-editor"
+              width="100%"
+              height="100%"
+              readOnly={loadingCode}
+              setOptions={{ useWorker: false }}
+              editorProps={{ $blockScrolling: true }}
+              fontSize={14}
+            />
+            {loadingCode && <div className="overlay"><div className="spinner" /></div>}
+            <button className="btn auto-btn" onClick={autoEnhance} disabled={loadingCode}>Auto-Enhance</button>
+          </div>
 
-        {/* Prompt + Samples + Generate */}
-        <div className="prompt-area" style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <textarea
-            className="prompt-text"
-            value={prompt}
-            onChange={e => setPrompt(e.target.value)}
-            placeholder="Enter your main prompt here..."
-            disabled={loadingCode}
-            style={{ flex: 1, height: 64 }}
-          />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <label htmlFor="samples-input" style={{ whiteSpace: 'nowrap' }}>Samples:  </label>
+          <div className="prompt-area">
+            <textarea
+              className="prompt-text"
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              placeholder="Enter your main prompt here..."
+              disabled={loadingCode}
+            />
+            <div className="sample-controls">
+              <label htmlFor="samples-input">Samples:</label>
               <input
                 id="samples-input"
                 type="number"
@@ -192,70 +172,52 @@ export default function CodeGenerationUI() {
                   setNumSamples(isNaN(v) || v < 1 ? 1 : v);
                 }}
                 disabled={loadingCode}
-                style={{ width: '4ch', padding: '2px', textAlign: 'center' }}
               />
+              <button className="btn" onClick={generateCode} disabled={loadingCode}>Generate Code</button>
             </div>
-            <button
-              className="btn"
-              onClick={generateCode}
-              disabled={loadingCode}
-              style={{ width: '100%' }}>
-              Generate Code
-            </button>
           </div>
         </div>
-      </div>
 
-      {/* Side Panel */}
-      <div className="side-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-        <div className="panel-content" style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {mode === 'scot' && (
-            <>
-              <textarea
-                className="panel-text"
-                value={scot}
-                onChange={e => setScot(e.target.value)}
-                disabled={loadingScot}
-                style={{ flex: 1, width: '100%' }}
-              />
-              {loadingScot && <div className="overlay"><div className="spinner" /></div>}
-              {scot && !loadingScot && (
-                <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>
-                  Implement SCoT
-                </button>
-              )}
-            </>
-          )}
-          {mode === 'refine' && (
-            <>
-              <textarea
-                className="panel-text"
-                value={suggestion}
-                onChange={e => setSuggestion(e.target.value)}
-                disabled={loadingRefine}
-                style={{ flex: 1, width: '100%' }}
-              />
-              {loadingRefine && <div className="overlay"><div className="spinner" /></div>}
-              {suggestion && !loadingRefine && (
-                <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>
-                  Refine Code
-                </button>
-              )}
-            </>
-          )}
-          {!mode && (
-            <div className="placeholder" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              Choose an action below
-            </div>
-          )}
-        </div>
-        <div className="action-row" style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <button className="btn flex-btn" onClick={generateScot} disabled={loadingScot || loadingCode} style={{ flex: 1 }}>
-            Generate SCoT
-          </button>
-          <button className="btn flex-btn" onClick={suggestRefinement} disabled={loadingRefine || loadingCode} style={{ flex: 1 }}>
-            Suggest Refinement
-          </button>
+        <div className="side-panel">
+          <div className="panel-content">
+            {mode === 'scot' && (
+              <>
+                <textarea
+                  className="panel-text"
+                  value={scot}
+                  onChange={e => setScot(e.target.value)}
+                  disabled={loadingScot}
+                />
+                {loadingScot && <div className="overlay"><div className="spinner" /></div>}
+                {scot && !loadingScot && (
+                  <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>Implement SCoT</button>
+                )}
+              </>
+            )}
+            {mode === 'refine' && (
+              <>
+                <textarea
+                  className="panel-text"
+                  value={suggestion}
+                  onChange={e => setSuggestion(e.target.value)}
+                  disabled={loadingRefine}
+                />
+                {loadingRefine && <div className="overlay"><div className="spinner" /></div>}
+                {suggestion && !loadingRefine && (
+                  <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>Refine Code</button>
+                )}
+              </>
+            )}
+            {!mode && (
+              <div className="placeholder">
+                Choose an action below
+              </div>
+            )}
+          </div>
+          <div className="action-row">
+            <button className="btn flex-btn" onClick={generateScot} disabled={loadingScot || loadingCode}>Generate SCoT</button>
+            <button className="btn flex-btn" onClick={suggestRefinement} disabled={loadingRefine || loadingCode}>Suggest Refinement</button>
+          </div>
         </div>
       </div>
     </div>
