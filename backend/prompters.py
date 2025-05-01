@@ -27,9 +27,9 @@ def perfect_normalize_code(source: str) -> str:
         print(f"Error in perfect_normalize_code: {e}")
         return ""
 
-def generate_one_completion_basic(client, prompt: str) -> str:
+def generate_one_completion_basic(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model,
         messages=[
             {"role": "system", "content": "You are a Python coding assistant. Generate correct and complete Python code."},
             {"role": "user", "content": f"Complete the following function (no comments):\n\n{prompt}"}
@@ -52,7 +52,7 @@ def generate_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
     return response.choices[0].message.content.strip()
 
 def generate_one_completion_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
-    scot = generate_SCoT(client, prompt)
+    scot = generate_SCoT(client, prompt, model)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -78,7 +78,7 @@ def PHP_Enhancer(client, initial_code: str, problem: str, max_iterations: int = 
     if "no further hints" in hint.lower():
         return initial_code
     refine_resp = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model,
         messages=[
             {"role": "system", "content": "You are a Python coding assistant."},
             {"role": "user", "content": f"Refine this code based on the hint:\nHint: {hint}\nCode:\n```{initial_code}```"}
@@ -104,7 +104,7 @@ def SR_Enhancer(client, initial_code: str, problem: str, max_iterations: int = 3
         if "no issues found" in critique.lower():
             break
         refine_resp = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a Python coding assistant."},
                 {"role": "user", "content": f"Refine this code based on critique:\nCritique: {critique}\nCode:\n```{current}```"}
@@ -139,6 +139,5 @@ def generate_one_completion_self_consistency(client, prompt: str, num_samples: i
         norm = perfect_normalize_code(code)
         normalized_forms.append(norm)
         normalized_to_original.setdefault(norm, []).append(code)
-    from collections import Counter
     most_common_norm, _ = Counter(normalized_forms).most_common(1)[0]
     return normalized_to_original[most_common_norm][0]
