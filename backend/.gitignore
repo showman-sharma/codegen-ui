@@ -1,14 +1,38 @@
-
-# Python (backend)
+# Python virtual environments
 .venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
 # Build outputs
 build/
 dist/
+*.egg-info/
 
-# OS files
+# IDE/editor folders
+.vscode/
+.idea/
+
+# System files
 .DS_Store
 Thumbs.db
 
-# Env files
+# Environment variables
 .env
+.env.*
+
+# Logs
+*.log
+
+# Test coverage
+htmlcov/
+.coverage
+
+# Misc
+*.bak
+*.swp

@@ -6,7 +6,7 @@ import 'ace-builds/src-noconflict/theme-twilight';
 import React, { useState } from 'react';
 import './index.css';
 
-const API_BASE = (process.env.REACT_APP_API_URL || '') + '/api';
+const API_BASE = process.env.REACT_APP_API_URL || '';
 
 export default function CodeGenerationUI() {
   const [prompt, setPrompt] = useState('');
@@ -15,18 +15,21 @@ export default function CodeGenerationUI() {
   const [suggestion, setSuggestion] = useState('');
   const [code, setCode] = useState('');
   const [numSamples, setNumSamples] = useState(1);
+  const [model, setModel] = useState('gpt-3.5-turbo');
+  const [darkMode, setDarkMode] = useState(true);
 
   const [loadingScot, setLoadingScot] = useState(false);
   const [loadingRefine, setLoadingRefine] = useState(false);
   const [loadingCode, setLoadingCode] = useState(false);
 
-  // Handlers
+  const toggleTheme = () => setDarkMode(prev => !prev);
+
   async function generateCode() {
     setLoadingCode(true);
     try {
       const res = await fetch(`${API_BASE}/generate-code`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, numSamples }),
+        body: JSON.stringify({ prompt, numSamples, model }),
       });
       const { code: newCode } = await res.json();
       setCode(newCode);
@@ -42,7 +45,7 @@ export default function CodeGenerationUI() {
     try {
       const res = await fetch(`${API_BASE}/generate-scot`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, model }),
       });
       const { scot: newScot } = await res.json();
       setScot(newScot);
@@ -58,7 +61,7 @@ export default function CodeGenerationUI() {
     try {
       const res = await fetch(`${API_BASE}/generate-code`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, scot }),
+        body: JSON.stringify({ prompt, scot, model }),
       });
       const { code: newCode } = await res.json();
       setCode(newCode);
@@ -74,7 +77,7 @@ export default function CodeGenerationUI() {
     try {
       const res = await fetch(`${API_BASE}/suggest-refine`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, code }),
+        body: JSON.stringify({ prompt, code, model }),
       });
       const { suggestion: newSuggestion } = await res.json();
       setSuggestion(newSuggestion);
@@ -90,7 +93,7 @@ export default function CodeGenerationUI() {
     try {
       const res = await fetch(`${API_BASE}/refine-code`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, suggestion }),
+        body: JSON.stringify({ code, suggestion, model }),
       });
       const { refinedCode } = await res.json();
       setCode(refinedCode);
@@ -106,7 +109,7 @@ export default function CodeGenerationUI() {
     try {
       const res = await fetch(`${API_BASE}/auto-enhance`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, code }),
+        body: JSON.stringify({ prompt, code, model }),
       });
       const { enhancedCode } = await res.json();
       setCode(enhancedCode);
@@ -118,14 +121,33 @@ export default function CodeGenerationUI() {
   }
 
   return (
-    <div className="app">
+    <div className={darkMode ? 'app dark' : 'app light'}>
+      {/* Header */}
+      <header className="header-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <select
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            style={{ fontSize: '0.9rem', padding: '4px' }}>
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            <option value="gpt-4">GPT-4</option>
+            <option value="gpt-4o">GPT-4o</option>
+          </select>
+          <label className="switch">
+            <input type="checkbox" checked={darkMode} onChange={toggleTheme} />
+            <span className="slider round"></span>
+          </label>
+        </div>
+        <h1 style={{ fontFamily: 'Segoe UI, sans-serif', fontSize: '1.5rem', margin: 0 }}>CodeGem</h1>
+        <div />
+      </header>
+
       {/* Editor Pane */}
       <div className="editor-pane">
         <div className="editor-area" style={{ position: 'relative' }}>
-          {/* Syntax-highlighted, editable Python editor */}
           <AceEditor
             mode="python"
-            theme="twilight"
+            theme={darkMode ? 'twilight' : 'textmate'}
             value={code}
             onChange={setCode}
             name="python-editor"
@@ -136,14 +158,14 @@ export default function CodeGenerationUI() {
             editorProps={{ $blockScrolling: true }}
             fontSize={14}
           />
-
-          {loadingCode && <div className="overlay"><div className="spinner"/></div>}
+          {loadingCode && <div className="overlay"><div className="spinner" /></div>}
           <button
             className="btn auto-btn"
             onClick={autoEnhance}
             disabled={loadingCode}
-            style={{ position: 'absolute', bottom: 16, right: 16 }}
-          >Auto-Enhance</button>
+            style={{ position: 'absolute', bottom: 16, right: 16 }}>
+            Auto-Enhance
+          </button>
         </div>
 
         {/* Prompt + Samples + Generate */}
@@ -177,8 +199,9 @@ export default function CodeGenerationUI() {
               className="btn"
               onClick={generateCode}
               disabled={loadingCode}
-              style={{ width: '100%' }}
-            >Generate Code</button>
+              style={{ width: '100%' }}>
+              Generate Code
+            </button>
           </div>
         </div>
       </div>
@@ -195,7 +218,7 @@ export default function CodeGenerationUI() {
                 disabled={loadingScot}
                 style={{ flex: 1, width: '100%' }}
               />
-              {loadingScot && <div className="overlay"><div className="spinner"/></div>}
+              {loadingScot && <div className="overlay"><div className="spinner" /></div>}
               {scot && !loadingScot && (
                 <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>
                   Implement SCoT
@@ -212,7 +235,7 @@ export default function CodeGenerationUI() {
                 disabled={loadingRefine}
                 style={{ flex: 1, width: '100%' }}
               />
-              {loadingRefine && <div className="overlay"><div className="spinner"/></div>}
+              {loadingRefine && <div className="overlay"><div className="spinner" /></div>}
               {suggestion && !loadingRefine && (
                 <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>
                   Refine Code
