@@ -9,7 +9,6 @@ from prompters import (
     generate_one_completion_basic,
     generate_SCoT,
     generate_one_completion_SCoT,
-    generate_one_completion_self_consistency,
     PHP_Enhancer,
     suggest_refinement,
     refine_code,
@@ -36,14 +35,11 @@ def api_generate_code():
     num_samples = data.get('numSamples', 1)
     scot = data.get('scot')
     model = data.get('model', 'gpt-3.5-turbo')
-
+    code = data.get('code', '')
     if scot:
         code = generate_one_completion_SCoT(client, prompt, model)
     else:
-        if num_samples and num_samples > 1:
-            code = generate_one_completion_self_consistency(client, prompt, num_samples, model)
-        else:
-            code = generate_one_completion_basic(client, prompt,model)
+        code = generate_one_completion_basic(client, prompt,num_samples, model, code)
     return jsonify({"code": code})
 
 @app.route('/api/suggest-refine', methods=['POST'])

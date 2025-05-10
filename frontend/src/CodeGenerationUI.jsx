@@ -42,7 +42,7 @@ export default function CodeGenerationUI() {
   async function generateCode() {
     setLoadingCode(true);
     try {
-      const res = await fetch(`${API_BASE}/generate-code`, fetchOptions({ prompt, numSamples }));
+      const res = await fetch(`${API_BASE}/generate-code`, fetchOptions({ prompt, numSamples, code }));
       const { code: newCode } = await res.json();
       setCode(newCode);
     } catch (e) {

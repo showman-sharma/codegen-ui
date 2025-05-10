@@ -27,17 +27,40 @@ def perfect_normalize_code(source: str) -> str:
         print(f"Error in perfect_normalize_code: {e}")
         return ""
 
-def generate_one_completion_basic(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
+def generate_one_completion_basic(client, prompt: str, num_samples: int = 5, model: str = 'gpt-3.5-turbo', code: str = '') -> str:
+    """
+    Generates code completion. If existing code is present, it is included as part of the context.
+    """
+    if code.strip():
+        user_content = f"""Here is the current code:\n```python\n{extract_clean_code(code)}\n```\n\nPlease modify this python code according to this user prompt: {prompt}.\n\nRETURN THE COMPETE CODE"""
+    else:
+        user_content = prompt
+
     response = client.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": "You are a Python coding assistant. Generate correct and complete Python code."},
-            {"role": "user", "content": f"Complete the following function (no comments):\n\n{prompt}"}
+            {"role": "user", "content": user_content}
         ],
-        temperature=0.1,
-        max_tokens=400
+        temperature=0.1 if num_samples == 1 else 0.8,
+        max_tokens=400,
+        n=num_samples
     )
-    return extract_clean_code(response.choices[0].message.content.strip())
+
+    if num_samples == 1:
+        return extract_clean_code(response.choices[0].message.content.strip())
+
+    completions = [extract_clean_code(choice.message.content.strip()) for choice in response.choices]
+    from collections import Counter
+    normalized_to_original = {}
+    normalized_forms = []
+    for comp in completions:
+        norm = perfect_normalize_code(comp)
+        normalized_forms.append(norm)
+        normalized_to_original.setdefault(norm, []).append(comp)
+    most_common_norm, _ = Counter(normalized_forms).most_common(1)[0]
+    return normalized_to_original[most_common_norm][0]
+
 
 def generate_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
     response = client.chat.completions.create(
@@ -157,30 +180,6 @@ def refine_code(client, initial_code: str, critique: str, model: str = 'gpt-3.5-
         new_code = extract_clean_code(refine_resp.choices[0].message.content.strip())
     current = new_code
     return current
-
-def generate_one_completion_self_consistency(client, prompt: str, num_samples: int = 5, model: str = 'gpt-3.5-turbo') -> str:
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "You are a Python coding assistant."},
-            {"role": "user", "content": f"Complete the following function:\n\n{prompt}"}
-        ],
-        temperature=0.8,
-        max_tokens=400,
-        n=num_samples
-    )
-    completions = []
-    for choice in response.choices:
-        completions.append(extract_clean_code(choice.message.content.strip()))
-    from collections import Counter
-    normalized_to_original = {}
-    normalized_forms = []
-    for code in completions:
-        norm = perfect_normalize_code(code)
-        normalized_forms.append(norm)
-        normalized_to_original.setdefault(norm, []).append(code)
-    most_common_norm, _ = Counter(normalized_forms).most_common(1)[0]
-    return normalized_to_original[most_common_norm][0]
 
 def explain_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
     response = client.chat.completions.create(
