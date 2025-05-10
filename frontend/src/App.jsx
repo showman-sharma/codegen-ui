@@ -3,7 +3,7 @@ import CodeGenerationUI from './CodeGenerationUI';
 
 export default function App() {
   return (
-    <div style={{ height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <CodeGenerationUI />
     </div>
   );

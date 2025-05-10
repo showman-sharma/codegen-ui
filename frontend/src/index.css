@@ -105,6 +105,7 @@ input:checked + .slider:before {
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: 0; /* CRITICAL */
 }
 .editor-pane {
   flex: 3;
@@ -174,7 +175,8 @@ input:checked + .slider:before {
   flex-direction: column;
   padding: 1rem;
   border-left: 1px solid #333;
-  min-height: 0;
+  overflow: hidden;
+  min-height: 0; /* CRITICAL */
 }
 .app.light .side-panel {
   background-color: #fff;
@@ -188,8 +190,9 @@ input:checked + .slider:before {
   display: flex;
   flex-direction: column;
   position: relative;
-  min-height: 0;
   gap: 0.75rem;
+  overflow: hidden;
+  min-height: 0; /* CRITICAL */
 }
 
 /* Scrollable markdown and editable view */
@@ -197,6 +200,7 @@ input:checked + .slider:before {
 .editable-textarea {
   flex: 1;
   overflow-y: auto;
+  min-height: 0; /* CRITICAL */
   padding: 1rem;
   border-radius: 6px;
   font-family: 'Segoe UI', sans-serif;

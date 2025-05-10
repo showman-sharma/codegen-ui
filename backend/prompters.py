@@ -43,7 +43,7 @@ def generate_one_completion_basic(client, prompt: str, num_samples: int = 5, mod
             {"role": "user", "content": user_content}
         ],
         temperature=0.1 if num_samples == 1 else 0.8,
-        max_tokens=400,
+        max_tokens=1000,
         n=num_samples
     )
 
@@ -70,7 +70,7 @@ def generate_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
             {"role": "user", "content": f"Generate a structured chain-of-thought for the following problem:\n\n{prompt}"}
         ],
         temperature=0.2,
-        max_tokens=500
+        max_tokens=1000
     )
     return response.choices[0].message.content.strip()
 
@@ -83,7 +83,7 @@ def generate_one_completion_SCoT(client, prompt: str, model: str = 'gpt-3.5-turb
             {"role": "user", "content": f"Problem:\n{prompt}\n\nSCoT:\n{scot}\n\nImplement the code without comments."}
         ],
         temperature=0.1,
-        max_tokens=400
+        max_tokens=1000
     )
     return extract_clean_code(response.choices[0].message.content.strip())
 
@@ -175,7 +175,7 @@ def refine_code(client, initial_code: str, critique: str, model: str = 'gpt-3.5-
                 {"role": "user", "content": f"Refine this code based on critique:\nCritique: {critique}\nCode:\n```{current}```"}
             ],
             temperature=0.1,
-            max_tokens=400
+            max_tokens=1000
         )
         new_code = extract_clean_code(refine_resp.choices[0].message.content.strip())
     current = new_code
@@ -189,7 +189,7 @@ def explain_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
             {"role": "user", "content": f"Explain the following code in detail:\n\n```python\n{code}\n```"}
         ],
         temperature=0.1,
-        max_tokens=400
+        max_tokens=1000
     )
     return response.choices[0].message.content.strip()
 
@@ -201,6 +201,6 @@ def add_comments_to_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str
             {"role": "user", "content": f"Add helpful inline comments to this Python code:\n\n```python\n{code}\n```"}
         ],
         temperature=0.1,
-        max_tokens=400
+        max_tokens=1000
     )
     return extract_clean_code(response.choices[0].message.content.strip())
