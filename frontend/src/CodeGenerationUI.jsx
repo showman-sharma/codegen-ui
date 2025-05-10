@@ -4,6 +4,7 @@ import 'ace-builds/src-noconflict/mode-python';
 import 'ace-builds/src-noconflict/theme-twilight';
 import 'ace-builds/src-noconflict/theme-textmate';
 
+// ... imports ...
 import React, { useState } from 'react';
 import './index.css';
 import logoDark from './assets/logo-dark.png';
@@ -26,6 +27,9 @@ export default function CodeGenerationUI() {
   const [loadingScot, setLoadingScot] = useState(false);
   const [loadingRefine, setLoadingRefine] = useState(false);
   const [loadingCode, setLoadingCode] = useState(false);
+
+  const [isEditable, setIsEditable] = useState(false);
+  const [editableText, setEditableText] = useState('');
 
   const toggleTheme = () => setDarkMode(prev => !prev);
 
@@ -54,6 +58,8 @@ export default function CodeGenerationUI() {
       const res = await fetch(`${API_BASE}/generate-scot`, fetchOptions({ prompt }));
       const { scot: newScot } = await res.json();
       setScot(newScot);
+      setEditableText(newScot);
+      setIsEditable(false);
     } catch (e) {
       console.error(e);
     } finally {
@@ -80,6 +86,8 @@ export default function CodeGenerationUI() {
       const res = await fetch(`${API_BASE}/suggest-refine`, fetchOptions({ prompt, code }));
       const { suggestion: newSuggestion } = await res.json();
       setSuggestion(newSuggestion);
+      setEditableText(newSuggestion);
+      setIsEditable(false);
     } catch (e) {
       console.error(e);
     } finally {
@@ -119,6 +127,8 @@ export default function CodeGenerationUI() {
       const res = await fetch(`${API_BASE}/explain-code`, fetchOptions({ code }));
       const { explanation } = await res.json();
       setSuggestion(explanation);
+      setEditableText(explanation);
+      setIsEditable(false);
     } catch (e) {
       console.error(e);
     } finally {
@@ -139,6 +149,12 @@ export default function CodeGenerationUI() {
     }
   }
 
+  const currentText = mode === 'scot' ? scot : suggestion;
+  const setCurrentText = (text) => {
+    if (mode === 'scot') setScot(text);
+    else setSuggestion(text);
+  };
+
   return (
     <div className={darkMode ? 'app dark' : 'app light'}>
       <header className="header-bar">
@@ -152,11 +168,7 @@ export default function CodeGenerationUI() {
             <option value="gpt-4.1-nano">GPT-4.1 nano</option>
             <option value="gpt-4o-mini">GPT-4o mini</option>
           </select>
-          <button
-            className="theme-toggle"
-            onClick={toggleTheme}
-            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
+          <button className="theme-toggle" onClick={toggleTheme}>
             {darkMode ? '🌙' : '🔆'}
           </button>
         </div>
@@ -222,12 +234,32 @@ export default function CodeGenerationUI() {
 
         <div className="side-panel">
           <div className="panel-content">
-            {(mode === 'scot' || mode === 'refine' || mode === 'explain') && (
+            {(mode === 'scot' || mode === 'refine' || mode === 'explain') ? (
               <>
-                <div className="markdown-view">
-                  <ReactMarkdown>
-                    {mode === 'scot' ? scot : suggestion}
-                  </ReactMarkdown>
+                <div className="panel-text-wrapper">
+                  {isEditable ? (
+                    <textarea
+                      className="editable-textarea"
+                      value={editableText}
+                      onChange={(e) => setEditableText(e.target.value)}
+                    />
+                  ) : (
+                    <div className="markdown-view">
+                      <ReactMarkdown>{currentText}</ReactMarkdown>
+                    </div>
+                  )}
+                  <button
+                    className="floating-edit-btn"
+                    onClick={() => {
+                      if (isEditable) {
+                        setCurrentText(editableText);
+                      }
+                      setIsEditable(!isEditable);
+                    }}
+                    title={isEditable ? 'Save' : 'Edit'}
+                  >
+                    {isEditable ? '✅' : '✎'}
+                  </button>
                 </div>
 
                 {(loadingScot || loadingRefine) && (
@@ -235,20 +267,27 @@ export default function CodeGenerationUI() {
                 )}
 
                 {(mode === 'scot' && scot && !loadingScot) && (
-                  <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>Implement SCoT</button>
+                  <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>
+                    Implement SCoT
+                  </button>
                 )}
                 {(mode === 'refine' && suggestion && !loadingRefine) && (
-                  <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>Refine Code</button>
+                  <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>
+                    Refine Code
+                  </button>
                 )}
                 {(mode === 'explain' && suggestion && !loadingRefine) && (
-                  <button className="btn action-panel-btn" onClick={addComments} disabled={loadingCode}>Add Comments</button>
+                  <button className="btn action-panel-btn" onClick={addComments} disabled={loadingCode}>
+                    Add Comments
+                  </button>
                 )}
               </>
-            )}
-            {!mode && (
+            ) : (
               <div className="placeholder">Choose an action below</div>
             )}
           </div>
+
+
           <div className="action-row">
             <button className="btn flex-btn" onClick={generateScot} disabled={loadingScot || loadingCode}>Generate SCoT</button>
             <button className="btn flex-btn" onClick={suggestRefinement} disabled={loadingRefine || loadingCode}>Suggest Refinement</button>
