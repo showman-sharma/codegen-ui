@@ -13,7 +13,8 @@ from prompters import (
     suggest_refinement,
     refine_code,
     explain_code,
-    add_comments_to_code
+    add_comments_to_code,
+    generate_test_cases
 )
 
 load_dotenv()
@@ -84,6 +85,17 @@ def api_comment_code():
     model = data.get('model', 'gpt-3.5-turbo')
     commented = add_comments_to_code(client, code, model=model)
     return jsonify({"commentedCode": commented})
+
+@app.route('/api/generate-tests', methods=['POST'])
+def api_generate_tests():
+    data = request.json or {}
+    prompt = data.get('prompt', '')
+    code = data.get('code', '')
+    model = data.get('model', 'gpt-3.5-turbo')
+    main_fn = data.get('mainFn', None)
+    
+    _, test_code = generate_test_cases(client,prompt, code, model=model, main_fn=main_fn)
+    return jsonify({"testCases": test_code})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

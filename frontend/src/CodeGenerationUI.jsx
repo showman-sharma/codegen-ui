@@ -23,6 +23,7 @@ export default function CodeGenerationUI() {
   const [model, setModel] = useState('gpt-3.5-turbo');
   const [darkMode, setDarkMode] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [copiedTest, setCopiedTest] = useState(false);
 
   const [loadingScot, setLoadingScot] = useState(false);
   const [loadingRefine, setLoadingRefine] = useState(false);
@@ -30,6 +31,10 @@ export default function CodeGenerationUI() {
 
   const [isEditable, setIsEditable] = useState(false);
   const [editableText, setEditableText] = useState('');
+
+  const [functionList, setFunctionList] = useState([]);
+  const [selectedFunction, setSelectedFunction] = useState('');
+
 
   const toggleTheme = () => setDarkMode(prev => !prev);
 
@@ -149,6 +154,35 @@ export default function CodeGenerationUI() {
     }
   }
 
+  function prepareTestCases() {
+  const matches = code.match(/def\s+(\w+)\s*\(/g) || [];
+  const fnNames = matches.map(line => line.match(/def\s+(\w+)\s*\(/)[1]);
+  setFunctionList(fnNames);
+  setSelectedFunction(fnNames.at(-1) || '');
+  setMode('test');
+  setSuggestion('');
+  setEditableText('');
+}
+async function generateTestCases() {
+  setLoadingRefine(true);
+  try {
+    const res = await fetch(`${API_BASE}/generate-tests`, fetchOptions({
+      prompt,
+      code,
+      mainFn: selectedFunction
+    }));
+    const { testCases } = await res.json();
+    setSuggestion(testCases);
+    setEditableText(testCases);
+    setIsEditable(false);
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setLoadingRefine(false);
+  }
+}
+
+
   const currentText = mode === 'scot' ? scot : suggestion;
   const setCurrentText = (text) => {
     if (mode === 'scot') setScot(text);
@@ -233,64 +267,115 @@ export default function CodeGenerationUI() {
         </div>
 
         <div className="side-panel">
-          <div className="panel-content">
-            {(mode === 'scot' || mode === 'refine' || mode === 'explain') ? (
-              <>
-                <div className="panel-text-wrapper">
-                  {isEditable ? (
-                    <textarea
-                      className="editable-textarea"
-                      value={editableText}
-                      onChange={(e) => setEditableText(e.target.value)}
-                    />
-                  ) : (
-                    <div className="markdown-view">
-                      <ReactMarkdown>{currentText}</ReactMarkdown>
-                    </div>
-                  )}
+  <div className="panel-content">
+    {(mode === 'scot' || mode === 'refine' || mode === 'explain' || mode === 'test') ? (
+      <>
+        {/* Panel content for all modes */}
+        {mode !== 'test' ? (
+          <div className="panel-text-wrapper">
+            {isEditable ? (
+              <textarea
+                className="editable-textarea"
+                value={editableText}
+                onChange={(e) => setEditableText(e.target.value)}
+              />
+            ) : (
+              <div className="markdown-view">
+                <ReactMarkdown>{currentText}</ReactMarkdown>
+              </div>
+            )}
+            <button
+              className="floating-edit-btn"
+              onClick={() => {
+                if (isEditable) setCurrentText(editableText);
+                setIsEditable(!isEditable);
+              }}
+              title={isEditable ? 'Save' : 'Edit'}
+            >
+              {isEditable ? '✅' : '✎'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="action-panel-btn-row">
+              <select
+                value={selectedFunction}
+                onChange={(e) => setSelectedFunction(e.target.value)}
+                className="function-select"
+              >
+                {functionList.map(fn => (
+                  <option key={fn} value={fn}>{fn}()</option>
+                ))}
+              </select>
+              <button
+                className="btn"
+                onClick={generateTestCases}
+                disabled={loadingCode}
+              >
+                Generate
+              </button>
+            </div>
+
+            {suggestion && !loadingRefine && (
+              <div className="test-editor-wrapper">
+                <div className="copy-button-container">
                   <button
-                    className="floating-edit-btn"
+                    className={`copy-btn ${copiedTest ? 'copied' : ''}`}
                     onClick={() => {
-                      if (isEditable) {
-                        setCurrentText(editableText);
-                      }
-                      setIsEditable(!isEditable);
+                      navigator.clipboard.writeText(suggestion);
+                      setCopiedTest(true);
+                      setTimeout(() => setCopiedTest(false), 1500);
                     }}
-                    title={isEditable ? 'Save' : 'Edit'}
                   >
-                    {isEditable ? '✅' : '✎'}
+                    {copiedTest ? '✓ Copied' : 'Copy'}
                   </button>
                 </div>
-
-                {(loadingScot || loadingRefine) && (
-                  <div className="overlay"><div className="spinner" /></div>
-                )}
-
-                {(mode === 'scot' && scot && !loadingScot) && (
-                  <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>
-                    Implement SCoT
-                  </button>
-                )}
-                {(mode === 'refine' && suggestion && !loadingRefine) && (
-                  <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>
-                    Refine Code
-                  </button>
-                )}
-                {(mode === 'explain' && suggestion && !loadingRefine) && (
-                  <button className="btn action-panel-btn" onClick={addComments} disabled={loadingCode}>
-                    Add Comments
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="placeholder">Choose an action below</div>
+                <AceEditor
+                  mode="python"
+                  theme={darkMode ? 'twilight' : 'textmate'}
+                  value={suggestion}
+                  readOnly={false}
+                  width="100%"
+                  height="100%"
+                  setOptions={{ useWorker: false }}
+                  editorProps={{ $blockScrolling: true }}
+                  fontSize={14}
+                />
+              </div>
             )}
-          </div>
+          </>
+        )}
+
+        {(loadingScot || loadingRefine) && (
+          <div className="overlay"><div className="spinner" /></div>
+        )}
+
+        {(mode === 'scot' && scot && !loadingScot) && (
+          <button className="btn action-panel-btn" onClick={implementScot} disabled={loadingCode}>
+            Implement SCoT
+          </button>
+        )}
+        {(mode === 'refine' && suggestion && !loadingRefine) && (
+          <button className="btn action-panel-btn" onClick={refineFromSuggestion} disabled={loadingCode}>
+            Refine Code
+          </button>
+        )}
+        {(mode === 'explain' && suggestion && !loadingRefine) && (
+          <button className="btn action-panel-btn" onClick={addComments} disabled={loadingCode}>
+            Add Comments
+          </button>
+        )}
+      </>
+    ) : (
+      <div className="placeholder">Choose an action below</div>
+    )}
+  </div>
 
 
           <div className="action-row">
             <button className="btn flex-btn" onClick={generateScot} disabled={loadingScot || loadingCode}>Generate SCoT</button>
             <button className="btn flex-btn" onClick={suggestRefinement} disabled={loadingRefine || loadingCode}>Suggest Refinement</button>
+            <button className="btn flex-btn" onClick={prepareTestCases} disabled={loadingRefine || loadingCode}>Generate Test Cases</button>
             <button className="btn flex-btn" onClick={explainCode} disabled={loadingRefine || loadingCode}>Explain Code</button>
           </div>
         </div>

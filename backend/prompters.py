@@ -1,5 +1,6 @@
 # backend/prompters.py
 import re
+import ast
 
 def extract_clean_code(generated_text: str) -> str:
     code_blocks = re.findall(r"```(?:python)?\s*(.*?)\s*```", generated_text, re.DOTALL)
@@ -19,7 +20,6 @@ def extract_clean_code(generated_text: str) -> str:
 
 # Assume you have your PerfectNormalizer elsewhere or skip if not needed
 def perfect_normalize_code(source: str) -> str:
-    import ast
     try:
         tree = ast.parse(source)
         return ast.dump(tree, annotate_fields=True, include_attributes=False)
@@ -204,3 +204,81 @@ def add_comments_to_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str
         max_tokens=1000
     )
     return extract_clean_code(response.choices[0].message.content.strip())
+
+def extract_main_function(code: str) -> str:
+    """Extract last top-level function name if no main is given."""
+    try:
+        tree = ast.parse(code)
+        func_defs = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
+        return func_defs[-1] if func_defs else "candidate"
+    except:
+        return "candidate"
+
+def generate_test_cases(client, problem_statement: str, code: str, model: str = "gpt-3.5-turbo", main_fn: str = None, verbose: bool = False) -> tuple[str, str]:
+    import re
+    entry_point = main_fn or extract_main_function(code)
+
+    system_prompt = "You are an expert Python code tester. Generate assert-based test cases."
+
+    user_prompt = f"""
+Given the following Python function and problem description, generate a test function named `check(func)`.
+
+Requirements:
+- The argument `func` will be the main function to test.
+- Only call `func(...)` inside the test — never use `{entry_point}(...)`.
+- Use assert statements with failure messages, e.g.:
+  assert func(3) == 5, "Failed on input 3"
+- Do not include the function definition you're testing.
+- Do not call or define `test_*()` functions.
+- Do not add markdown, comments, or explanations.
+- Cover at least:
+  • 1 normal case
+  • 1 edge case
+  • 1 invalid or unexpected input (if applicable)
+
+Problem Description:
+{problem_statement}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.1,
+            max_tokens=600
+        )
+
+        raw_output = response.choices[0].message.content.strip()
+
+        # Optional: auto-fix misuse of function name
+        raw_output = re.sub(rf"\b{re.escape(entry_point)}\b", "func", raw_output)
+        # Remove surrounding ```python ... ``` if present
+        if raw_output.startswith("```"):
+            raw_output = re.sub(r"^```(?:python)?\s*([\s\S]+?)\s*```$", r"\1", raw_output, flags=re.IGNORECASE).strip()
+
+        # Extract valid test code starting with 'def check'
+        match = re.search(r"def\s+check\s*\([^)]*\):[\s\S]+", raw_output)
+        test_code = match.group(0).strip() if match else raw_output
+
+        # Sanity check
+        if "def check" not in test_code or "func(" not in test_code:
+            raise ValueError("Output missing required structure.")
+
+        if verbose:
+            print("Extracted function name:", entry_point)
+            print("Generated test code:\n", test_code)
+
+        return entry_point, extract_clean_code(test_code)
+
+    except Exception as e:
+        if verbose:
+            print("Error during test generation:", e)
+
+        fallback = '''
+def check(func):
+    assert func(0) == 0, "Fallback: expected func(0) to return 0"
+'''
+        return entry_point, fallback
