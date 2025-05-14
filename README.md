@@ -1,4 +1,4 @@
-# 🛠️ CodeGen UI
+# 🛠️ [CodeGen UI]([url](https://codegen-ui-xi.vercel.app/))
 
 An advanced interactive platform for AI-driven Python code generation, progressive enhancement, and structured solution planning.
 
