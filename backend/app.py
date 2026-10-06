@@ -252,29 +252,57 @@ def api_lab_run():
 
     candidates = []
     for model in models:
-        client = get_client(model)
         for strategy in strategies:
             started = time.perf_counter()
             plan = None
-            if strategy == "plan":
-                plan = generate_SCoT(client, prompt, model)
-                code = generate_one_completion_SCoT(client, prompt, model, scot=plan)
-            else:
-                code = generate_one_completion_basic(client, prompt, 1, model, "")
-            candidates.append({
-                "model": model,
-                "strategy": strategy,
-                "code": code,
-                "plan": plan,
-                "generationMs": round((time.perf_counter() - started) * 1000),
-                "entryPoint": extract_main_function(code),
-            })
+            try:
+                client = get_client(model)
+                if strategy == "plan":
+                    plan = generate_SCoT(client, prompt, model)
+                    code = generate_one_completion_SCoT(client, prompt, model, scot=plan)
+                else:
+                    code = generate_one_completion_basic(client, prompt, 1, model, "")
+                candidates.append({
+                    "model": model,
+                    "strategy": strategy,
+                    "code": code,
+                    "plan": plan,
+                    "generationMs": round((time.perf_counter() - started) * 1000),
+                    "entryPoint": extract_main_function(code),
+                    "generationError": None,
+                })
+            except Exception as exc:
+                candidates.append({
+                    "model": model,
+                    "strategy": strategy,
+                    "code": "",
+                    "plan": plan,
+                    "generationMs": round((time.perf_counter() - started) * 1000),
+                    "entryPoint": None,
+                    "generationError": str(exc),
+                    "execution": {
+                        "configured": bool(os.getenv("E2B_API_KEY")),
+                        "passed": None,
+                        "error": "Not executed because generation failed.",
+                    },
+                })
 
     # One shared generated test suite gives every candidate the same evidence.
     # It is deliberately reported as generated evidence, not ground truth.
     test_model = data.get("testModel") or models[0]
     test_client = get_client(test_model)
-    seed_candidate = next((c for c in candidates if c.get("entryPoint")), candidates[0])
+    valid_candidates = [c for c in candidates if c.get("code") and not c.get("generationError")]
+    if not valid_candidates:
+        return jsonify({
+            "prompt": prompt,
+            "testModel": test_model,
+            "tests": "",
+            "evidenceType": "generated-tests",
+            "candidates": candidates,
+            "error": "All candidate generations failed.",
+        })
+
+    seed_candidate = next((c for c in valid_candidates if c.get("entryPoint")), valid_candidates[0])
     entry_point, tests = generate_test_cases(
         test_client,
         prompt,
@@ -284,6 +312,8 @@ def api_lab_run():
     )
 
     for candidate in candidates:
+        if candidate.get("generationError"):
+            continue
         candidate_entry = candidate.get("entryPoint") or entry_point
         candidate["execution"] = execute_in_sandbox(
             candidate["code"], tests, candidate_entry
