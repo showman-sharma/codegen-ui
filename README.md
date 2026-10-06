@@ -35,7 +35,7 @@ codegen-ui/
 | Stack        | Technologies              |
 |--------------|----------------------------|
 | Frontend     | ReactJS, AceEditor          |
-| Backend      | Flask, Flask-CORS, OpenAI API |
+| Backend      | Flask, Flask-CORS, OpenAI-compatible API, OpenRouter |
 | Languages    | Python, JavaScript          |
 | DevTools     | dotenv, npm, pip, Git        |
 
@@ -87,8 +87,16 @@ npm start
 ### Backend `.env.example`
 
 ```plaintext
+# Recommended
+OPENROUTER_API_KEY=your-openrouter-api-key-here
+OPENROUTER_SITE_URL=https://codegen-ui-xi.vercel.app
+OPENROUTER_APP_NAME=CodeGen UI
+
+# Optional direct-OpenAI fallback
 OPENAI_API_KEY=your-openai-api-key-here
 ```
+
+OpenRouter is the default provider for modern model presets. Current presets include GPT-OSS 20B/120B, Qwen3 Coder, DeepSeek V3.2, Qwen3 Coder Next/Flash, and GLM 5.3. The backend keeps direct OpenAI support for legacy model IDs.
 
 ---
 
@@ -129,7 +137,7 @@ See [LICENSE](./LICENSE) for full details.
 
 ## 📈 Future Enhancements
 
-- 🧠 Smart model selection (GPT-3.5, GPT-4)
+- 🧠 Cost-aware model routing and automatic model benchmarking
 - 📑 Multifile code generation capabilities
 - 🛡️ Authentication layer for secure usage
 - 🏗️ Pluggable enhancement pipelines (Test Chains, Critique Chains)
