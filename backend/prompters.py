@@ -314,6 +314,7 @@ Requirements:
 - NEVER invent new input types or requirements that are not stated in the problem.
 - Do not test strings, None, floats, malformed containers, exceptions, or other out-of-contract inputs unless the prompt explicitly defines behavior for them.
 - Prefer small hand-checkable examples whose expected outputs are unambiguous.
+- If an expected output cannot be derived confidently from the specification, omit that test rather than guessing.
 
 Verification focus:
 {focus_instruction}
@@ -345,9 +346,10 @@ Problem Description:
         match = re.search(r"def\s+check\s*\([^)]*\):[\s\S]+", raw_output)
         test_code = match.group(0).strip() if match else raw_output
 
-        # Sanity check
+        # Sanity check: malformed verifier code must fail closed, never become evidence.
         if "def check" not in test_code or "func(" not in test_code:
             raise ValueError("Output missing required structure.")
+        ast.parse(test_code)
 
         if verbose:
             print("Extracted function name:", entry_point)
@@ -358,9 +360,4 @@ Problem Description:
     except Exception as e:
         if verbose:
             print("Error during test generation:", e)
-
-        fallback = '''
-def check(func):
-    assert func(0) == 0, "Fallback: expected func(0) to return 0"
-'''
-        return entry_point, fallback
+        raise RuntimeError(f"Verifier generation failed: {e}") from e
