@@ -74,8 +74,8 @@ def generate_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
     )
     return response.choices[0].message.content.strip()
 
-def generate_one_completion_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
-    scot = generate_SCoT(client, prompt, model)
+def generate_one_completion_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo', scot: str = None) -> str:
+    scot = scot or generate_SCoT(client, prompt, model)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -177,8 +177,7 @@ def refine_code(client, initial_code: str, critique: str, model: str = 'gpt-3.5-
             temperature=0.1,
             max_tokens=1000
         )
-        new_code = extract_clean_code(refine_resp.choices[0].message.content.strip())
-    current = new_code
+        current = extract_clean_code(refine_resp.choices[0].message.content.strip())
     return current
 
 def explain_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
