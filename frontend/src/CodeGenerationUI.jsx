@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import AceEditor from 'react-ace';
 import ReactMarkdown from 'react-markdown';
 import LabView from './LabView';
@@ -82,7 +82,12 @@ function Spinner() {
 }
 
 export default function CodeGenerationUI() {
-  const [productMode, setProductMode] = useState('home');
+  const [productMode, setProductMode] = useState(() => {
+    const path = window.location.pathname.replace(/\/$/, '');
+    if (path.endsWith('/lab')) return 'lab';
+    if (path.endsWith('/build')) return 'build';
+    return 'home';
+  });
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState('plan');
   const [scot, setScot] = useState('');
@@ -103,6 +108,27 @@ export default function CodeGenerationUI() {
   const [lastLatency, setLastLatency] = useState(null);
   const [lastAction, setLastAction] = useState('Ready');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const onPopState = () => {
+      const path = window.location.pathname.replace(/\/$/, '');
+      if (path.endsWith('/lab')) setProductMode('lab');
+      else if (path.endsWith('/build')) setProductMode('build');
+      else setProductMode('home');
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  function navigate(nextMode) {
+    const path = nextMode === 'home' ? '/' : `/${nextMode}`;
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setProductMode(nextMode);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   const modelInfo = MODELS[model] || { name: model, badge: 'Model', tone: 'neutral', meta: '' };
   const busy = loadingCode || loadingScot || loadingRefine;
@@ -316,7 +342,7 @@ export default function CodeGenerationUI() {
   return (
     <div className={`${darkMode ? 'app dark' : 'app light'} page-${productMode}`}>
       <header className="topbar pro-topbar">
-        <button className="brand brand-button" onClick={() => setProductMode('home')} type="button">
+        <button className="brand brand-button" onClick={() => navigate('home')} type="button">
           <div className="brand-mark">
             <img src={darkMode ? logoDark : logoLight} alt="" />
           </div>
@@ -329,21 +355,21 @@ export default function CodeGenerationUI() {
         <nav className="primary-nav" aria-label="Primary navigation">
           <button
             className={productMode === 'home' ? 'active' : ''}
-            onClick={() => setProductMode('home')}
+            onClick={() => navigate('home')}
             type="button"
           >
             Overview
           </button>
           <button
             className={productMode === 'build' ? 'active' : ''}
-            onClick={() => setProductMode('build')}
+            onClick={() => navigate('build')}
             type="button"
           >
             Build
           </button>
           <button
             className={productMode === 'lab' ? 'active' : ''}
-            onClick={() => setProductMode('lab')}
+            onClick={() => navigate('lab')}
             type="button"
           >
             Lab
@@ -411,8 +437,8 @@ export default function CodeGenerationUI() {
 
       {productMode === 'home' ? (
         <HomeView
-          onOpenLab={() => setProductMode('lab')}
-          onOpenBuild={() => setProductMode('build')}
+          onOpenLab={() => navigate('lab')}
+          onOpenBuild={() => navigate('build')}
         />
       ) : productMode === 'lab' ? (
         <LabView darkMode={darkMode} />
