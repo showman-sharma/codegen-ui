@@ -252,9 +252,12 @@ Requirements:
 - Do not call or define `test_*()` functions.
 - Do not add markdown, comments, or explanations.
 - Cover at least:
-  • 1 normal case
-  • 1 edge case
-  • 1 invalid or unexpected input (if applicable)
+  • 2 normal cases
+  • 2 edge cases that remain within the stated input contract
+  • negative/zero/empty/boundary cases only when they are valid according to the problem
+- NEVER invent new input types or requirements that are not stated in the problem.
+- Do not test strings, None, floats, malformed containers, exceptions, or other out-of-contract inputs unless the prompt explicitly defines behavior for them.
+- Prefer small hand-checkable examples whose expected outputs are unambiguous.
 
 Problem Description:
 {problem_statement}
