@@ -545,7 +545,7 @@ def api_lab_run():
             "suiteId": suite["id"],
             "suiteLabel": suite["label"],
             "model": suite["model"],
-            "modelLabel": suite["label"],
+            "modelLabel": suite["modelLabel"],
             "provider": suite["provider"],
             "passed": execution.get("passed"),
             "durationMs": execution.get("durationMs"),
