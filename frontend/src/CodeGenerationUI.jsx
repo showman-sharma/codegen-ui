@@ -20,7 +20,7 @@ export default function CodeGenerationUI() {
   const [suggestion, setSuggestion] = useState('');
   const [code, setCode] = useState('');
   const [numSamples, setNumSamples] = useState(1);
-  const [model, setModel] = useState('gpt-3.5-turbo');
+  const [model, setModel] = useState('qwen/qwen3-coder-30b-a3b-instruct');
   const [darkMode, setDarkMode] = useState(true);
   const [copied, setCopied] = useState(false);
   const [copiedTest, setCopiedTest] = useState(false);
@@ -198,9 +198,22 @@ async function generateTestCases() {
         </div>
         <div className="right-header">
           <select value={model} onChange={e => setModel(e.target.value)} className="model-select">
-            <option value="gpt-3.5-turbo">GPT-3.5 turbo</option>
-            <option value="gpt-4.1-nano">GPT-4.1 nano</option>
-            <option value="gpt-4o-mini">GPT-4o mini</option>
+            <optgroup label="OpenRouter · ultra cheap">
+              <option value="openai/gpt-oss-20b">GPT-OSS 20B · cheapest</option>
+              <option value="openai/gpt-oss-120b">GPT-OSS 120B · value reasoning</option>
+              <option value="qwen/qwen3-coder-30b-a3b-instruct">Qwen3 Coder 30B · default</option>
+            </optgroup>
+            <optgroup label="OpenRouter · stronger coding">
+              <option value="deepseek/deepseek-v3.2">DeepSeek V3.2 · strong/value</option>
+              <option value="qwen/qwen3-coder-next">Qwen3 Coder Next · long context</option>
+              <option value="qwen/qwen3-coder-flash">Qwen3 Coder Flash · 1M context</option>
+              <option value="z-ai/glm-5.3">GLM 5.3 · premium coding</option>
+            </optgroup>
+            <optgroup label="Direct OpenAI · legacy">
+              <option value="gpt-4.1-nano">GPT-4.1 nano</option>
+              <option value="gpt-4o-mini">GPT-4o mini</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 turbo</option>
+            </optgroup>
           </select>
           <button className="theme-toggle" onClick={toggleTheme}>
             {darkMode ? '🌙' : '🔆'}
