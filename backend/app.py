@@ -1,5 +1,6 @@
 # backend/app.py
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import time
 
@@ -41,6 +42,8 @@ def get_client(model: str) -> OpenAI:
         return OpenAI(
             api_key=api_key,
             base_url=OPENROUTER_BASE_URL,
+            timeout=45.0,
+            max_retries=1,
             default_headers={
                 "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://codegen-ui-xi.vercel.app"),
                 "X-Title": os.getenv("OPENROUTER_APP_NAME", "CodeGen UI"),
@@ -50,7 +53,7 @@ def get_client(model: str) -> OpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required for direct OpenAI models.")
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=api_key, timeout=45.0, max_retries=1)
 
 
 def request_model(data: dict) -> str:
@@ -250,42 +253,53 @@ def api_lab_run():
     if unknown:
         raise ValueError(f"Unsupported strategies: {', '.join(unknown)}")
 
+    def build_candidate(model, strategy):
+        started = time.perf_counter()
+        plan = None
+        try:
+            client = get_client(model)
+            if strategy == "plan":
+                plan = generate_SCoT(client, prompt, model)
+                code = generate_one_completion_SCoT(client, prompt, model, scot=plan)
+            else:
+                code = generate_one_completion_basic(client, prompt, 1, model, "")
+            return {
+                "model": model,
+                "strategy": strategy,
+                "code": code,
+                "plan": plan,
+                "generationMs": round((time.perf_counter() - started) * 1000),
+                "entryPoint": extract_main_function(code),
+                "generationError": None,
+            }
+        except Exception as exc:
+            return {
+                "model": model,
+                "strategy": strategy,
+                "code": "",
+                "plan": plan,
+                "generationMs": round((time.perf_counter() - started) * 1000),
+                "entryPoint": None,
+                "generationError": str(exc),
+                "execution": {
+                    "configured": bool(os.getenv("E2B_API_KEY")),
+                    "passed": None,
+                    "error": "Not executed because generation failed.",
+                },
+            }
+
+    jobs = [(model, strategy) for model in models for strategy in strategies]
     candidates = []
-    for model in models:
-        for strategy in strategies:
-            started = time.perf_counter()
-            plan = None
-            try:
-                client = get_client(model)
-                if strategy == "plan":
-                    plan = generate_SCoT(client, prompt, model)
-                    code = generate_one_completion_SCoT(client, prompt, model, scot=plan)
-                else:
-                    code = generate_one_completion_basic(client, prompt, 1, model, "")
-                candidates.append({
-                    "model": model,
-                    "strategy": strategy,
-                    "code": code,
-                    "plan": plan,
-                    "generationMs": round((time.perf_counter() - started) * 1000),
-                    "entryPoint": extract_main_function(code),
-                    "generationError": None,
-                })
-            except Exception as exc:
-                candidates.append({
-                    "model": model,
-                    "strategy": strategy,
-                    "code": "",
-                    "plan": plan,
-                    "generationMs": round((time.perf_counter() - started) * 1000),
-                    "entryPoint": None,
-                    "generationError": str(exc),
-                    "execution": {
-                        "configured": bool(os.getenv("E2B_API_KEY")),
-                        "passed": None,
-                        "error": "Not executed because generation failed.",
-                    },
-                })
+    with ThreadPoolExecutor(max_workers=min(len(jobs), 8)) as pool:
+        future_map = {
+            pool.submit(build_candidate, model, strategy): (model, strategy)
+            for model, strategy in jobs
+        }
+        for future in as_completed(future_map):
+            candidates.append(future.result())
+
+    order = {pair: i for i, pair in enumerate(jobs)}
+    candidates.sort(key=lambda item: order[(item["model"], item["strategy"])])
 
     # One shared generated test suite gives every candidate the same evidence.
     # It is deliberately reported as generated evidence, not ground truth.
@@ -311,13 +325,21 @@ def api_lab_run():
         main_fn=seed_candidate.get("entryPoint"),
     )
 
-    for candidate in candidates:
+    def execute_candidate(candidate):
         if candidate.get("generationError"):
-            continue
+            return candidate
         candidate_entry = candidate.get("entryPoint") or entry_point
         candidate["execution"] = execute_in_sandbox(
             candidate["code"], tests, candidate_entry
         )
+        return candidate
+
+    executable = [c for c in candidates if not c.get("generationError")]
+    if executable:
+        with ThreadPoolExecutor(max_workers=min(len(executable), 4)) as pool:
+            futures = [pool.submit(execute_candidate, candidate) for candidate in executable]
+            for future in as_completed(futures):
+                future.result()
 
     return jsonify({
         "prompt": prompt,
