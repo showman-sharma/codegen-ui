@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import AceEditor from 'react-ace';
 import ReactMarkdown from 'react-markdown';
+import LabView from './LabView';
 
 import 'ace-builds/src-noconflict/mode-python';
 import 'ace-builds/src-noconflict/theme-twilight';
@@ -80,6 +81,7 @@ function Spinner() {
 }
 
 export default function CodeGenerationUI() {
+  const [productMode, setProductMode] = useState('build');
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState('plan');
   const [scot, setScot] = useState('');
@@ -319,7 +321,9 @@ export default function CodeGenerationUI() {
           </div>
           <div>
             <div className="brand-name">Codegen Studio</div>
-            <div className="brand-subtitle">Build · inspect · improve</div>
+            <div className="brand-subtitle">
+              {productMode === 'build' ? 'Build · inspect · improve' : 'Executable inference laboratory'}
+            </div>
           </div>
         </div>
 
@@ -330,7 +334,21 @@ export default function CodeGenerationUI() {
         </div>
 
         <div className="topbar-actions">
-          <div className="model-shell">
+          <div className="mode-switch" role="tablist" aria-label="Product mode">
+            <button
+              className={productMode === 'build' ? 'active' : ''}
+              onClick={() => setProductMode('build')}
+            >
+              Build
+            </button>
+            <button
+              className={productMode === 'lab' ? 'active' : ''}
+              onClick={() => setProductMode('lab')}
+            >
+              Lab
+            </button>
+          </div>
+          {productMode === 'build' && <div className="model-shell">
             <span className={`model-badge ${modelInfo.tone}`}>{modelInfo.badge}</span>
             <select value={model} onChange={(e) => setModel(e.target.value)} className="model-select">
               <optgroup label="Best value">
@@ -353,7 +371,7 @@ export default function CodeGenerationUI() {
                 <option value="gpt-4o-mini">GPT-4o mini</option>
               </optgroup>
             </select>
-          </div>
+          </div>}
 
           <button
             className="icon-btn"
@@ -365,6 +383,9 @@ export default function CodeGenerationUI() {
         </div>
       </header>
 
+      {productMode === 'lab' ? (
+        <LabView darkMode={darkMode} />
+      ) : (
       <main className="workspace">
         <section className="canvas">
           <div className="editor-card">
@@ -634,6 +655,7 @@ export default function CodeGenerationUI() {
           </div>
         </aside>
       </main>
+      )}
     </div>
   );
 }
