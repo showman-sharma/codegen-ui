@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import AceEditor from 'react-ace';
 import ReactMarkdown from 'react-markdown';
 import LabView from './LabView';
+import HomeView from './HomeView';
 
 import 'ace-builds/src-noconflict/mode-python';
 import 'ace-builds/src-noconflict/theme-twilight';
@@ -81,7 +82,7 @@ function Spinner() {
 }
 
 export default function CodeGenerationUI() {
-  const [productMode, setProductMode] = useState('build');
+  const [productMode, setProductMode] = useState('home');
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState('plan');
   const [scot, setScot] = useState('');
@@ -313,80 +314,110 @@ export default function CodeGenerationUI() {
   }
 
   return (
-    <div className={darkMode ? 'app dark' : 'app light'}>
-      <header className="topbar">
-        <div className="brand">
+    <div className={`${darkMode ? 'app dark' : 'app light'} page-${productMode}`}>
+      <header className="topbar pro-topbar">
+        <button className="brand brand-button" onClick={() => setProductMode('home')} type="button">
           <div className="brand-mark">
             <img src={darkMode ? logoDark : logoLight} alt="" />
           </div>
           <div>
-            <div className="brand-name">Codegen Studio</div>
-            <div className="brand-subtitle">
-              {productMode === 'build' ? 'Build · inspect · improve' : 'Executable inference laboratory'}
-            </div>
+            <div className="brand-name">CodeGen Studio</div>
+            <div className="brand-subtitle">Evidence-aware code inference</div>
           </div>
-        </div>
+        </button>
 
-        <div className="topbar-center">
-          <span className="status-dot" />
-          <span>{lastAction}</span>
-          {lastLatency !== null && <span className="latency">{(lastLatency / 1000).toFixed(1)}s</span>}
-        </div>
+        <nav className="primary-nav" aria-label="Primary navigation">
+          <button
+            className={productMode === 'home' ? 'active' : ''}
+            onClick={() => setProductMode('home')}
+            type="button"
+          >
+            Overview
+          </button>
+          <button
+            className={productMode === 'build' ? 'active' : ''}
+            onClick={() => setProductMode('build')}
+            type="button"
+          >
+            Build
+          </button>
+          <button
+            className={productMode === 'lab' ? 'active' : ''}
+            onClick={() => setProductMode('lab')}
+            type="button"
+          >
+            Lab
+            <span className="nav-beta">Research</span>
+          </button>
+        </nav>
 
         <div className="topbar-actions">
-          <div className="mode-switch" role="tablist" aria-label="Product mode">
-            <button
-              className={productMode === 'build' ? 'active' : ''}
-              onClick={() => setProductMode('build')}
-            >
-              Build
-            </button>
-            <button
-              className={productMode === 'lab' ? 'active' : ''}
-              onClick={() => setProductMode('lab')}
-            >
-              Lab
-            </button>
-          </div>
-          {productMode === 'build' && <div className="model-shell">
-            <span className={`model-badge ${modelInfo.tone}`}>{modelInfo.badge}</span>
-            <select value={model} onChange={(e) => setModel(e.target.value)} className="model-select">
-              <optgroup label="Best value">
-                <option value="qwen/qwen3-coder-30b-a3b-instruct">Qwen3 Coder 30B</option>
-                <option value="deepseek/deepseek-v3.2">DeepSeek V3.2</option>
-                <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
-              </optgroup>
-              <optgroup label="Ultra cheap">
-                <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
-              </optgroup>
-              <optgroup label="Long context">
-                <option value="qwen/qwen3-coder-next">Qwen3 Coder Next</option>
-                <option value="qwen/qwen3-coder-flash">Qwen3 Coder Flash</option>
-              </optgroup>
-              <optgroup label="Premium">
-                <option value="z-ai/glm-5.3">GLM 5.3</option>
-              </optgroup>
-              <optgroup label="Direct OpenAI">
-                <option value="gpt-4.1-nano">GPT-4.1 nano</option>
-                <option value="gpt-4o-mini">GPT-4o mini</option>
-              </optgroup>
-            </select>
-          </div>}
+          {productMode === 'build' && (
+            <div className="build-status">
+              <span className="status-dot" />
+              <span>{lastAction}</span>
+              {lastLatency !== null && (
+                <span className="latency">{(lastLatency / 1000).toFixed(1)}s</span>
+              )}
+            </div>
+          )}
+
+          {productMode === 'build' && (
+            <div className="model-shell compact-model-shell">
+              <span className={`model-badge ${modelInfo.tone}`}>{modelInfo.badge}</span>
+              <select value={model} onChange={(e) => setModel(e.target.value)} className="model-select">
+                <optgroup label="Best value">
+                  <option value="qwen/qwen3-coder-30b-a3b-instruct">Qwen3 Coder 30B</option>
+                  <option value="deepseek/deepseek-v3.2">DeepSeek V3.2</option>
+                  <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+                </optgroup>
+                <optgroup label="Ultra cheap">
+                  <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+                </optgroup>
+                <optgroup label="Long context">
+                  <option value="qwen/qwen3-coder-next">Qwen3 Coder Next</option>
+                  <option value="qwen/qwen3-coder-flash">Qwen3 Coder Flash</option>
+                </optgroup>
+                <optgroup label="Premium">
+                  <option value="z-ai/glm-5.3">GLM 5.3</option>
+                </optgroup>
+                <optgroup label="Direct OpenAI">
+                  <option value="gpt-4.1-nano">GPT-4.1 nano</option>
+                  <option value="gpt-4o-mini">GPT-4o mini</option>
+                </optgroup>
+              </select>
+            </div>
+          )}
+
+          <a
+            className="github-link"
+            href="https://github.com/showman-sharma/codegen-ui"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub ↗
+          </a>
 
           <button
             className="icon-btn"
             onClick={() => setDarkMode((prev) => !prev)}
             title="Toggle theme"
+            type="button"
           >
             {darkMode ? '☾' : '☀'}
           </button>
         </div>
       </header>
 
-      {productMode === 'lab' ? (
+      {productMode === 'home' ? (
+        <HomeView
+          onOpenLab={() => setProductMode('lab')}
+          onOpenBuild={() => setProductMode('build')}
+        />
+      ) : productMode === 'lab' ? (
         <LabView darkMode={darkMode} />
       ) : (
-      <main className="workspace">
+      <main className="workspace build-workspace">
         <section className="canvas">
           <div className="editor-card">
             <div className="editor-toolbar">
