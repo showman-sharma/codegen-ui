@@ -916,7 +916,7 @@ export default function LabView({ darkMode }) {
                   {(result.testSuites || []).map((suite) => (
                     <details className="generated-tests" key={suite.id}>
                       <summary>
-                        {suite.label} · {suite.label || suite.model} ·{' '}
+                        {suite.label} · {suite.modelLabel || suite.model} ·{' '}
                         {suite.available ? 'available' : 'unavailable'}
                       </summary>
                       {suite.available ? (
