@@ -2,6 +2,27 @@
 import re
 import ast
 
+def _message_text(message) -> str:
+    """Return usable assistant text across OpenAI-compatible providers."""
+    content = getattr(message, "content", None)
+    if isinstance(content, str) and content.strip():
+        return content.strip()
+
+    # Some OpenAI-compatible providers expose reasoning separately.
+    reasoning = getattr(message, "reasoning_content", None)
+    if isinstance(reasoning, str) and reasoning.strip():
+        return reasoning.strip()
+
+    # Newer SDK/provider payloads may expose a generic reasoning field.
+    reasoning = getattr(message, "reasoning", None)
+    if isinstance(reasoning, str) and reasoning.strip():
+        return reasoning.strip()
+
+    raise ValueError(
+        "Model returned no text content. Try another model/provider or inspect the provider response."
+    )
+
+
 def extract_clean_code(generated_text: str) -> str:
     code_blocks = re.findall(r"```(?:python)?\s*(.*?)\s*```", generated_text, re.DOTALL)
     if code_blocks:
@@ -48,9 +69,9 @@ def generate_one_completion_basic(client, prompt: str, num_samples: int = 5, mod
     )
 
     if num_samples == 1:
-        return extract_clean_code(response.choices[0].message.content.strip())
+        return extract_clean_code(_message_text(response.choices[0].message))
 
-    completions = [extract_clean_code(choice.message.content.strip()) for choice in response.choices]
+    completions = [extract_clean_code(_message_text(choice.message)) for choice in response.choices]
     from collections import Counter
     normalized_to_original = {}
     normalized_forms = []
@@ -72,7 +93,7 @@ def generate_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo') -> str:
         temperature=0.2,
         max_tokens=1000
     )
-    return response.choices[0].message.content.strip()
+    return _message_text(response.choices[0].message)
 
 def generate_one_completion_SCoT(client, prompt: str, model: str = 'gpt-3.5-turbo', scot: str = None) -> str:
     scot = scot or generate_SCoT(client, prompt, model)
@@ -85,7 +106,7 @@ def generate_one_completion_SCoT(client, prompt: str, model: str = 'gpt-3.5-turb
         temperature=0.1,
         max_tokens=1000
     )
-    return extract_clean_code(response.choices[0].message.content.strip())
+    return extract_clean_code(_message_text(response.choices[0].message))
 
 
 def PHP_Enhancer(client, initial_code: str, problem_statement: str,  max_iterations: int = 1, model: str = 'gpt-3.5-turbo', verbosity: int = 0) -> str:
@@ -162,7 +183,7 @@ simply reply with "No issues found."
         temperature=0.1,
         max_tokens=200
     )
-    critique = critique_resp.choices[0].message.content.strip()
+    critique = _message_text(critique_resp.choices[0].message)
     return critique
 
 def refine_code(client, initial_code: str, critique: str, model: str = 'gpt-3.5-turbo') -> str:    
@@ -177,7 +198,7 @@ def refine_code(client, initial_code: str, critique: str, model: str = 'gpt-3.5-
             temperature=0.1,
             max_tokens=1000
         )
-        current = extract_clean_code(refine_resp.choices[0].message.content.strip())
+        current = extract_clean_code(_message_text(refine_resp.choices[0].message))
     return current
 
 def explain_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
@@ -190,7 +211,7 @@ def explain_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
         temperature=0.1,
         max_tokens=1000
     )
-    return response.choices[0].message.content.strip()
+    return _message_text(response.choices[0].message)
 
 def add_comments_to_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
     response = client.chat.completions.create(
@@ -202,7 +223,7 @@ def add_comments_to_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str
         temperature=0.1,
         max_tokens=1000
     )
-    return extract_clean_code(response.choices[0].message.content.strip())
+    return extract_clean_code(_message_text(response.choices[0].message))
 
 def extract_main_function(code: str) -> str:
     """Extract last top-level function name if no main is given."""
@@ -250,7 +271,7 @@ Problem Description:
             max_tokens=600
         )
 
-        raw_output = response.choices[0].message.content.strip()
+        raw_output = _message_text(response.choices[0].message)
 
         # Optional: auto-fix misuse of function name
         raw_output = re.sub(rf"\b{re.escape(entry_point)}\b", "func", raw_output)
