@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/build", "destination": "/" },
+    { "source": "/lab", "destination": "/" }
+  ]
+}
