@@ -1,10 +1,13 @@
 # backend/app.py
+import base64
 import os
+import time
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from openai import OpenAI
+from e2b import Sandbox
 
 from prompters import (
     PHP_Enhancer,
@@ -14,6 +17,7 @@ from prompters import (
     generate_one_completion_SCoT,
     generate_one_completion_basic,
     generate_test_cases,
+    extract_main_function,
     refine_code,
     suggest_refinement,
 )
@@ -147,6 +151,151 @@ def api_generate_tests():
         get_client(model), prompt, code, model=model, main_fn=main_fn
     )
     return jsonify({"testCases": test_code})
+
+
+def execute_in_sandbox(code: str, tests: str, entry_point: str, timeout_seconds: int = 8) -> dict:
+    """Execute model-generated Python and generated tests in an isolated E2B microVM."""
+    if not os.getenv("E2B_API_KEY"):
+        return {
+            "configured": False,
+            "passed": None,
+            "error": "E2B_API_KEY is not configured on the backend.",
+        }
+
+    if not code.strip() or not tests.strip() or not entry_point:
+        raise ValueError("Code, tests, and a detected entry point are required.")
+
+    runner = f"""
+{code}
+
+{tests}
+
+if __name__ == "__main__":
+    check({entry_point})
+    print("__CODEGEN_RESULT__:PASS")
+"""
+    payload = base64.b64encode(runner.encode("utf-8")).decode("ascii")
+    command = (
+        "python -I -c \"import base64;"
+        "exec(compile(base64.b64decode('"
+        + payload
+        + "'), '<codegen-lab>', 'exec'))\""
+    )
+
+    started = time.perf_counter()
+    sandbox = Sandbox.create(timeout=max(timeout_seconds + 5, 15))
+    try:
+        result = sandbox.commands.run(command, timeout=timeout_seconds)
+        elapsed_ms = round((time.perf_counter() - started) * 1000)
+        stdout = getattr(result, "stdout", "") or ""
+        stderr = getattr(result, "stderr", "") or ""
+        exit_code = getattr(result, "exit_code", None)
+        output = getattr(result, "output", "") or ""
+        if output and not stdout:
+            stdout = output
+
+        passed = "__CODEGEN_RESULT__:PASS" in stdout and (exit_code in (0, None))
+        return {
+            "configured": True,
+            "passed": passed,
+            "stdout": stdout[-12000:],
+            "stderr": stderr[-12000:],
+            "exitCode": exit_code,
+            "durationMs": elapsed_ms,
+            "entryPoint": entry_point,
+        }
+    except Exception as exc:
+        return {
+            "configured": True,
+            "passed": False,
+            "stdout": "",
+            "stderr": str(exc),
+            "exitCode": None,
+            "durationMs": round((time.perf_counter() - started) * 1000),
+            "entryPoint": entry_point,
+        }
+    finally:
+        try:
+            sandbox.kill()
+        except Exception:
+            pass
+
+
+@app.route("/api/run-tests", methods=["POST"])
+def api_run_tests():
+    data = request.json or {}
+    code = data.get("code", "")
+    tests = data.get("tests", "")
+    entry_point = data.get("entryPoint") or extract_main_function(code)
+    result = execute_in_sandbox(code, tests, entry_point)
+    return jsonify(result)
+
+
+@app.route("/api/lab/run", methods=["POST"])
+def api_lab_run():
+    data = request.json or {}
+    prompt = data.get("prompt", "").strip()
+    models = data.get("models") or ["qwen/qwen3-coder-30b-a3b-instruct"]
+    strategies = data.get("strategies") or ["direct"]
+
+    if not prompt:
+        raise ValueError("A problem prompt is required.")
+    if len(models) > 4:
+        raise ValueError("Lab currently supports at most 4 models per experiment.")
+    if len(strategies) > 3:
+        raise ValueError("Lab currently supports at most 3 strategies per experiment.")
+
+    allowed_strategies = {"direct", "plan"}
+    unknown = [s for s in strategies if s not in allowed_strategies]
+    if unknown:
+        raise ValueError(f"Unsupported strategies: {', '.join(unknown)}")
+
+    candidates = []
+    for model in models:
+        client = get_client(model)
+        for strategy in strategies:
+            started = time.perf_counter()
+            plan = None
+            if strategy == "plan":
+                plan = generate_SCoT(client, prompt, model)
+                code = generate_one_completion_SCoT(client, prompt, model, scot=plan)
+            else:
+                code = generate_one_completion_basic(client, prompt, 1, model, "")
+            candidates.append({
+                "model": model,
+                "strategy": strategy,
+                "code": code,
+                "plan": plan,
+                "generationMs": round((time.perf_counter() - started) * 1000),
+                "entryPoint": extract_main_function(code),
+            })
+
+    # One shared generated test suite gives every candidate the same evidence.
+    # It is deliberately reported as generated evidence, not ground truth.
+    test_model = data.get("testModel") or models[0]
+    test_client = get_client(test_model)
+    seed_candidate = next((c for c in candidates if c.get("entryPoint")), candidates[0])
+    entry_point, tests = generate_test_cases(
+        test_client,
+        prompt,
+        seed_candidate["code"],
+        model=test_model,
+        main_fn=seed_candidate.get("entryPoint"),
+    )
+
+    for candidate in candidates:
+        candidate_entry = candidate.get("entryPoint") or entry_point
+        candidate["execution"] = execute_in_sandbox(
+            candidate["code"], tests, candidate_entry
+        )
+
+    return jsonify({
+        "prompt": prompt,
+        "testModel": test_model,
+        "tests": tests,
+        "evidenceType": "generated-tests",
+        "candidates": candidates,
+    })
 
 
 if __name__ == "__main__":
