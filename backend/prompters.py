@@ -201,6 +201,47 @@ def refine_code(client, initial_code: str, critique: str, model: str = 'gpt-3.5-
         current = extract_clean_code(_message_text(refine_resp.choices[0].message))
     return current
 
+
+def repair_from_evidence(
+    client,
+    problem: str,
+    code: str,
+    evidence_summary: str,
+    model: str = "gpt-3.5-turbo",
+) -> str:
+    """Repair only after corroborated execution evidence indicates a specification failure."""
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a conservative Python repair agent. Modify code only to fix failures "
+                    "supported by the supplied execution evidence. Preserve already-correct behavior. "
+                    "Return complete Python code only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"""Problem:
+{problem}
+
+Current code:
+```python
+{code}
+```
+
+Corroborated execution evidence:
+{evidence_summary}
+
+Repair the implementation so it satisfies the original problem specification. Do not add behavior for inputs outside the stated contract.""",
+            },
+        ],
+        temperature=0.1,
+        max_tokens=1200,
+    )
+    return extract_clean_code(_message_text(response.choices[0].message))
+
 def explain_code(client, code: str, model: str = 'gpt-3.5-turbo') -> str:
     response = client.chat.completions.create(
         model=model,
@@ -234,9 +275,24 @@ def extract_main_function(code: str) -> str:
     except:
         return "candidate"
 
-def generate_test_cases(client, problem_statement: str, code: str, model: str = "gpt-3.5-turbo", main_fn: str = None, verbose: bool = False) -> tuple[str, str]:
+def generate_test_cases(client, problem_statement: str, code: str, model: str = "gpt-3.5-turbo", main_fn: str = None, verbose: bool = False, focus: str = "specification") -> tuple[str, str]:
     import re
     entry_point = main_fn or extract_main_function(code)
+
+    focus_instructions = {
+        "specification": (
+            "Focus on representative examples and direct requirements from the specification."
+        ),
+        "adversarial": (
+            "Focus on difficult but valid boundary cases, duplicates, ordering, sign changes, "
+            "empty/minimal valid inputs, and algorithmic corner cases explicitly allowed by the specification."
+        ),
+        "discriminating": (
+            "Focus on valid cases that distinguish common plausible-but-wrong implementations. "
+            "Do not invent requirements; target subtle semantic mistakes within the stated contract."
+        ),
+    }
+    focus_instruction = focus_instructions.get(focus, focus_instructions["specification"])
 
     system_prompt = "You are an expert Python code tester. Generate assert-based test cases."
 
@@ -258,6 +314,9 @@ Requirements:
 - NEVER invent new input types or requirements that are not stated in the problem.
 - Do not test strings, None, floats, malformed containers, exceptions, or other out-of-contract inputs unless the prompt explicitly defines behavior for them.
 - Prefer small hand-checkable examples whose expected outputs are unambiguous.
+
+Verification focus:
+{focus_instruction}
 
 Problem Description:
 {problem_statement}

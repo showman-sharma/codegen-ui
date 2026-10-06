@@ -1409,3 +1409,379 @@ button:disabled {
     padding: 6px 8px;
   }
 }
+
+
+/* Evidence-aware Lab */
+.controller-policy-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+  padding: 10px 11px;
+  border-radius: 10px;
+  background: rgba(139,124,255,.07);
+  border: 1px solid rgba(139,124,255,.17);
+}
+
+.controller-policy-card > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.controller-policy-card strong { font-size: 10px; }
+.controller-policy-card small { color: var(--muted); font-size: 9px; line-height: 1.4; }
+
+.policy-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(139,124,255,.5);
+}
+
+.research-section { padding-bottom: 8px; }
+
+.research-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.research-toggle > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.research-toggle strong { font-size: 11px; }
+.research-toggle small { color: var(--muted); font-size: 9px; }
+
+.trusted-tests-panel {
+  margin-top: 11px;
+  padding: 10px;
+  border: 1px solid rgba(250,204,21,.15);
+  border-radius: 10px;
+  background: rgba(250,204,21,.035);
+}
+
+.oracle-warning {
+  margin-bottom: 8px;
+  color: #fde68a;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.trusted-tests-panel textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 9px;
+  border-radius: 8px;
+  outline: 0;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font: 10px/1.5 "SFMono-Regular", Consolas, monospace;
+}
+
+.trusted-tests-panel small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.evidence-flow-preview {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.evidence-flow-preview span {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+
+.summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.summary-chips span {
+  padding: 5px 7px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.summary-chips span.good { color: #86efac; border-color: rgba(74,210,149,.18); }
+.summary-chips span.bad { color: #fda4af; border-color: rgba(255,107,122,.18); }
+
+.verdict.warn {
+  color: #fde68a;
+  background: rgba(250,204,21,.08);
+  border: 1px solid rgba(250,204,21,.16);
+}
+
+.verdict.verify {
+  color: #93c5fd;
+  background: rgba(96,165,250,.08);
+  border: 1px solid rgba(96,165,250,.16);
+}
+
+.verdict.neutral {
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.trajectory-card {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.trajectory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.trajectory-head h3 {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.trajectory-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+  padding: 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.trajectory-node {
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.trajectory-node > span {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: #b9afff;
+  background: rgba(139,124,255,.1);
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.trajectory-node > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trajectory-node strong { font-size: 9px; }
+.trajectory-node small { color: var(--muted); font-size: 8px; }
+.wide-node { min-width: 140px; }
+.controller-node { border-color: rgba(139,124,255,.24); }
+.repair-node { border-color: rgba(250,204,21,.18); }
+
+.trajectory-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.controller-reason {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 9px;
+}
+
+.controller-reason strong { white-space: nowrap; }
+.controller-reason span { color: var(--muted); line-height: 1.45; }
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
+.verifier-card {
+  min-width: 0;
+  padding: 9px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.verifier-card.passed { border-color: rgba(74,210,149,.18); }
+.verifier-card.failed { border-color: rgba(255,107,122,.18); }
+
+.verifier-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.verifier-card-head span { font-size: 9px; font-weight: 750; }
+.verifier-card-head strong { font-size: 8px; }
+.verifier-card.passed .verifier-card-head strong { color: #86efac; }
+.verifier-card.failed .verifier-card-head strong { color: #fda4af; }
+
+.verifier-card > small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.verifier-card pre {
+  max-height: 95px;
+  margin: 8px 0 0;
+  padding: 7px;
+  overflow: auto;
+  border-radius: 6px;
+  color: var(--muted);
+  background: #0c0d11;
+  font: 8px/1.45 "SFMono-Regular", Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.app.light .verifier-card pre { background: #f4f5f8; }
+
+.repair-evidence-block {
+  border-top: 1px solid var(--border);
+}
+
+.oracle-card {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(250,204,21,.035);
+  border: 1px solid rgba(250,204,21,.14);
+}
+
+.oracle-card > div:not(.oracle-arrow):not(.oracle-outcome) {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.oracle-card span { color: var(--muted); font-size: 8px; }
+.oracle-card strong { font-size: 10px; }
+.oracle-arrow { color: var(--muted); }
+.oracle-outcome {
+  padding: 5px 7px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 850;
+}
+.oracle-outcome.pass { color: #86efac; background: rgba(74,210,149,.08); }
+.oracle-outcome.fail { color: #fda4af; background: rgba(255,107,122,.08); }
+.oracle-outcome.warn { color: #fde68a; background: rgba(250,204,21,.08); }
+.oracle-outcome.neutral { color: var(--muted); background: var(--surface-2); }
+
+.trajectory-card .candidate-tabs {
+  border-top: 1px solid var(--border);
+}
+
+.trajectory-card .candidate-code + .candidate-code {
+  border-left: 1px solid var(--border);
+}
+
+.trajectory-error {
+  padding: 16px;
+  color: #fda4af;
+  font: 10px/1.5 "SFMono-Regular", Consolas, monospace;
+}
+
+.suite-section {
+  margin-top: 14px;
+  padding-top: 4px;
+}
+
+.suite-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.suite-section-head h3 {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.suite-section > p {
+  margin: 8px 0 10px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .trajectory-strip { align-items: center; }
+  .oracle-card { grid-template-columns: 1fr auto 1fr; }
+  .oracle-outcome { grid-column: 1 / -1; justify-self: start; }
+}
+
+@media (max-width: 760px) {
+  .evidence-summary-head { align-items: flex-start; flex-direction: column; }
+  .summary-chips { justify-content: flex-start; }
+  .trajectory-card .candidate-tabs { grid-template-columns: 1fr; }
+  .trajectory-card .candidate-code + .candidate-code {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}

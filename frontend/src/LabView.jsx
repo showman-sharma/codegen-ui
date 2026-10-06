@@ -17,12 +17,38 @@ function shortModel(id) {
   return LAB_MODELS.find((m) => m.id === id)?.name || id;
 }
 
-function statusLabel(candidate) {
-  const execution = candidate.execution || {};
-  if (execution.configured === false) return 'Needs sandbox';
-  if (execution.passed === true) return 'PASS';
-  if (execution.passed === false) return 'FAIL';
-  return 'Not run';
+function actionLabel(action) {
+  return {
+    ACCEPT_PROVISIONALLY: 'Accept',
+    ACQUIRE_MORE_EVIDENCE: 'Verify more',
+    REPAIR: 'Repair',
+    ACCEPT_AFTER_REPAIR: 'Accept after repair',
+    STOP_UNRESOLVED: 'Stop unresolved',
+    GENERATION_FAILED: 'Generation failed',
+  }[action] || action || '—';
+}
+
+function actionTone(action) {
+  if (action?.includes('ACCEPT')) return 'pass';
+  if (action === 'REPAIR') return 'warn';
+  if (action === 'ACQUIRE_MORE_EVIDENCE') return 'verify';
+  if (action === 'STOP_UNRESOLVED' || action === 'GENERATION_FAILED') return 'fail';
+  return 'neutral';
+}
+
+function evidenceSummary(candidate) {
+  const evidence = candidate.initialEvidence || [];
+  if (!evidence.length) return 'No evidence';
+  const pass = evidence.filter((item) => item.passed === true).length;
+  const fail = evidence.filter((item) => item.passed === false).length;
+  return `${pass} pass · ${fail} fail`;
+}
+
+function outcomeTone(outcome) {
+  if (outcome === 'RECOVERY' || outcome === 'SAFE') return 'pass';
+  if (outcome === 'HARM') return 'fail';
+  if (outcome === 'WASTED') return 'warn';
+  return 'neutral';
 }
 
 export default function LabView({ darkMode }) {
@@ -32,21 +58,25 @@ export default function LabView({ darkMode }) {
     'deepseek/deepseek-v3.2',
   ]);
   const [strategies, setStrategies] = useState(['direct', 'plan']);
+  const [trustedTests, setTrustedTests] = useState('');
+  const [showTrustedTests, setShowTrustedTests] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState('');
 
   const selectedCandidate = result?.candidates?.[selected] || null;
-  const passes = useMemo(
-    () => result?.candidates?.filter((c) => c.execution?.passed === true).length || 0,
+  const validCandidates = useMemo(
+    () => result?.candidates?.filter((candidate) => !candidate.generationError) || [],
     [result]
   );
 
   function toggleModel(id) {
-    setModels((current) =>
-      current.includes(id) ? current.filter((m) => m !== id) : [...current, id]
-    );
+    setModels((current) => {
+      if (current.includes(id)) return current.filter((m) => m !== id);
+      if (current.length >= 4) return current;
+      return [...current, id];
+    });
   }
 
   function toggleStrategy(id) {
@@ -65,7 +95,7 @@ export default function LabView({ darkMode }) {
       const response = await fetch(`${API_BASE}/lab/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, models, strategies }),
+        body: JSON.stringify({ prompt, models, strategies, trustedTests }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Experiment failed');
@@ -78,21 +108,30 @@ export default function LabView({ darkMode }) {
   }
 
   return (
-    <main className="lab-workspace">
+    <main className="lab-workspace evidence-aware">
       <section className="lab-config">
-        <div className="lab-kicker">Executable inference laboratory</div>
-        <h1>Which inference strategy actually works?</h1>
+        <div className="lab-kicker">Verifier-aware code inference</div>
+        <h1>Know when not to repair.</h1>
         <p className="lab-lede">
-          Run the same programming problem across models and strategies, then execute every
-          candidate against one shared generated test suite in an isolated sandbox.
+          CodeGen verifies generated programs with independent evidence first. It spends more
+          inference only when verifiers disagree, and permits repair only after failure evidence is
+          corroborated.
         </p>
+
+        <div className="controller-policy-card">
+          <span className="policy-dot" />
+          <div>
+            <strong>Evidence-aware controller</strong>
+            <small>verify ×2 → escalate on disagreement → repair only on corroborated failure</small>
+          </div>
+        </div>
 
         <div className="lab-section">
           <div className="lab-section-head">
             <span>01</span>
             <div>
               <strong>Problem</strong>
-              <small>Python function tasks work best in this first version.</small>
+              <small>Function-level Python tasks are the current experimental surface.</small>
             </div>
           </div>
           <textarea
@@ -107,8 +146,8 @@ export default function LabView({ darkMode }) {
           <div className="lab-section-head">
             <span>02</span>
             <div>
-              <strong>Models</strong>
-              <small>Select up to four.</small>
+              <strong>Candidate generators</strong>
+              <small>Select up to four models. The first two also act as independent verifiers.</small>
             </div>
           </div>
           <div className="lab-choice-grid">
@@ -133,8 +172,8 @@ export default function LabView({ darkMode }) {
           <div className="lab-section-head">
             <span>03</span>
             <div>
-              <strong>Inference strategies</strong>
-              <small>Same model, different inference-time compute.</small>
+              <strong>Generation strategies</strong>
+              <small>Compare the initial candidate before verifier-aware control.</small>
             </div>
           </div>
           <div className="lab-strategies">
@@ -151,10 +190,41 @@ export default function LabView({ darkMode }) {
               onClick={() => toggleStrategy('plan')}
             >
               <strong>Plan → Code</strong>
-              <span>Problem → structured plan → implementation</span>
+              <span>Problem → structured plan → code</span>
               <small>2 generation calls</small>
             </button>
           </div>
+        </div>
+
+        <div className="lab-section research-section">
+          <button
+            className="research-toggle"
+            type="button"
+            onClick={() => setShowTrustedTests((value) => !value)}
+          >
+            <span>
+              <strong>04 · Trusted tests</strong>
+              <small>Optional research-only oracle. Never shown to the controller.</small>
+            </span>
+            <span>{showTrustedTests ? '−' : '+'}</span>
+          </button>
+
+          {showTrustedTests && (
+            <div className="trusted-tests-panel">
+              <div className="oracle-warning">
+                Evaluation only. These tests are executed on the initial and final program after the
+                controller acts, but their result is never used to choose verify / repair / stop.
+              </div>
+              <textarea
+                value={trustedTests}
+                onChange={(e) => setTrustedTests(e.target.value)}
+                placeholder={'def check(func):\n    assert func(...) == ...'}
+              />
+              <small>
+                With trusted tests, CodeGen can measure RECOVERY, HARM, SAFE, and WASTED interventions.
+              </small>
+            </div>
+          )}
         </div>
 
         <div className="lab-run-row">
@@ -163,14 +233,17 @@ export default function LabView({ darkMode }) {
               {models.length * strategies.length} candidate
               {models.length * strategies.length === 1 ? '' : 's'}
             </span>
-            <small>All candidates receive the same generated tests.</small>
+            <small>
+              2 verifiers initially · third verifier only on disagreement
+              {trustedTests.trim() ? ' · oracle accounting enabled' : ''}
+            </small>
           </div>
           <button
             className="primary-btn lab-run"
             onClick={runExperiment}
             disabled={running || !prompt.trim() || models.length === 0 || strategies.length === 0}
           >
-            {running ? 'Running experiment…' : 'Run experiment'}
+            {running ? 'Running controller…' : 'Run evidence-aware experiment'}
           </button>
         </div>
 
@@ -179,15 +252,17 @@ export default function LabView({ darkMode }) {
 
       <section className="lab-results">
         {!result && !running && (
-          <div className="lab-empty">
-            <div className="lab-empty-mark">∑</div>
-            <h2>Evidence, not vibes.</h2>
+          <div className="lab-empty evidence-empty">
+            <div className="lab-empty-mark">⊢</div>
+            <h2>Evidence before intervention.</h2>
             <p>
-              Configure an experiment on the left. CodeGen will generate candidates, create one
-              shared test suite, execute each candidate in isolation, and expose failures.
+              A failing self-test is not permission to rewrite code. CodeGen asks whether independent
+              verification agrees first, escalates evidence when it does not, and only then decides
+              whether repair is justified.
             </p>
-            <div className="evidence-note">
-              Generated tests are diagnostic evidence — <strong>not ground truth</strong>.
+            <div className="evidence-flow-preview">
+              <span>Candidate</span><b>→</b><span>Verifier A</span><b>+</b><span>Verifier B</span>
+              <b>→</b><span>Accept / Verify more / Repair</span>
             </div>
           </div>
         )}
@@ -195,31 +270,45 @@ export default function LabView({ darkMode }) {
         {running && (
           <div className="lab-empty">
             <span className="lab-big-spinner" />
-            <h2>Running the matrix</h2>
-            <p>Generating candidates, building shared tests, then executing each candidate.</p>
+            <h2>Running the controller</h2>
+            <p>
+              Generating candidates, collecting two independent evidence sources, escalating only
+              disagreements, then gating repair.
+            </p>
           </div>
         )}
 
         {result && (
           <div className="experiment-result">
-            <div className="experiment-summary">
+            <div className="experiment-summary evidence-summary-head">
               <div>
-                <span className="lab-kicker">Experiment result</span>
-                <h2>{passes}/{result.candidates.length} candidates passed</h2>
+                <span className="lab-kicker">Controller run</span>
+                <h2>{validCandidates.length} candidate trajectories</h2>
               </div>
-              <div className="evidence-pill">Generated-test evidence</div>
+              <div className="summary-chips">
+                <span>{result.summary?.acceptedWithoutRepair || 0} accepted</span>
+                <span>{result.summary?.evidenceEscalations || 0} escalated</span>
+                <span>{result.summary?.repairsAttempted || 0} repaired</span>
+                {result.trustedTestsProvided && (
+                  <>
+                    <span className="good">{result.summary?.recoveries || 0} recoveries</span>
+                    <span className="bad">{result.summary?.harms || 0} harms</span>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="result-table-wrap">
-              <table className="result-table">
+              <table className="result-table evidence-table">
                 <thead>
                   <tr>
-                    <th>Candidate</th>
+                    <th>#</th>
                     <th>Model</th>
                     <th>Strategy</th>
-                    <th>Generation</th>
-                    <th>Execution</th>
-                    <th>Verdict</th>
+                    <th>Evidence</th>
+                    <th>Controller</th>
+                    <th>Final</th>
+                    {result.trustedTestsProvided && <th>Oracle outcome</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -232,122 +321,200 @@ export default function LabView({ darkMode }) {
                       <td>#{index + 1}</td>
                       <td>{shortModel(candidate.model)}</td>
                       <td>{candidate.strategy === 'plan' ? 'Plan → Code' : 'Direct'}</td>
-                      <td>{(candidate.generationMs / 1000).toFixed(1)}s</td>
+                      <td>{candidate.generationError ? 'generation failed' : evidenceSummary(candidate)}</td>
                       <td>
-                        {candidate.execution?.durationMs
-                          ? `${(candidate.execution.durationMs / 1000).toFixed(1)}s`
-                          : '—'}
-                      </td>
-                      <td>
-                        <span
-                          className={`verdict ${statusLabel(candidate)
-                            .toLowerCase()
-                            .replace(' ', '-')}`}
-                        >
-                          {statusLabel(candidate)}
+                        <span className={`verdict ${actionTone(candidate.controller?.action)}`}>
+                          {actionLabel(candidate.controller?.action)}
                         </span>
                       </td>
+                      <td>{actionLabel(candidate.finalDecision)}</td>
+                      {result.trustedTestsProvided && (
+                        <td>
+                          <span className={`verdict ${outcomeTone(candidate.interventionOutcome)}`}>
+                            {candidate.interventionOutcome || '—'}
+                          </span>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {result.candidates.some((c) => c.execution?.configured === false) && (
-              <div className="sandbox-warning">
-                <strong>Execution is not configured yet.</strong>
-                <span>
-                  Candidate generation worked, but the backend needs an E2B API key before CodeGen
-                  can produce real PASS/FAIL execution evidence.
-                </span>
+            {selectedCandidate && (
+              <div className="trajectory-card">
+                <div className="trajectory-head">
+                  <div>
+                    <span className="lab-kicker">Candidate #{selected + 1}</span>
+                    <h3>
+                      {shortModel(selectedCandidate.model)} ·{' '}
+                      {selectedCandidate.strategy === 'plan' ? 'Plan → Code' : 'Direct'}
+                    </h3>
+                  </div>
+                  <span className={`verdict ${actionTone(selectedCandidate.finalDecision)}`}>
+                    {actionLabel(selectedCandidate.finalDecision)}
+                  </span>
+                </div>
+
+                {selectedCandidate.generationError ? (
+                  <div className="trajectory-error">{selectedCandidate.generationError}</div>
+                ) : (
+                  <>
+                    <div className="trajectory-strip">
+                      <div className="trajectory-node">
+                        <span>1</span>
+                        <div>
+                          <strong>Generate</strong>
+                          <small>{(selectedCandidate.generationMs / 1000).toFixed(1)}s</small>
+                        </div>
+                      </div>
+                      <div className="trajectory-arrow">→</div>
+                      <div className="trajectory-node wide-node">
+                        <span>2</span>
+                        <div>
+                          <strong>Collect evidence</strong>
+                          <small>{evidenceSummary(selectedCandidate)}</small>
+                        </div>
+                      </div>
+                      <div className="trajectory-arrow">→</div>
+                      <div className="trajectory-node controller-node">
+                        <span>3</span>
+                        <div>
+                          <strong>{actionLabel(selectedCandidate.controller?.action)}</strong>
+                          <small>{selectedCandidate.controller?.verifierTrust}</small>
+                        </div>
+                      </div>
+                      {selectedCandidate.repair?.attempted && (
+                        <>
+                          <div className="trajectory-arrow">→</div>
+                          <div className="trajectory-node repair-node">
+                            <span>4</span>
+                            <div>
+                              <strong>Repair + reverify</strong>
+                              <small>{(selectedCandidate.repair.generationMs / 1000).toFixed(1)}s</small>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="controller-reason">
+                      <strong>Controller rationale</strong>
+                      <span>{selectedCandidate.controller?.reason}</span>
+                    </div>
+
+                    <div className="evidence-grid">
+                      {(selectedCandidate.initialEvidence || []).map((item) => (
+                        <div className={`verifier-card ${item.passed ? 'passed' : 'failed'}`} key={item.suiteId}>
+                          <div className="verifier-card-head">
+                            <span>{item.suiteLabel}</span>
+                            <strong>{item.passed ? 'PASS' : 'FAIL'}</strong>
+                          </div>
+                          <small>{shortModel(item.model)}</small>
+                          <pre>{item.stderr || item.stdout || 'No diagnostic output.'}</pre>
+                        </div>
+                      ))}
+                    </div>
+
+                    {selectedCandidate.repair?.attempted && (
+                      <div className="repair-evidence-block">
+                        <div className="detail-label">After gated repair</div>
+                        <div className="evidence-grid">
+                          {(selectedCandidate.repair.evidence || []).map((item) => (
+                            <div className={`verifier-card ${item.passed ? 'passed' : 'failed'}`} key={item.suiteId}>
+                              <div className="verifier-card-head">
+                                <span>{item.suiteLabel}</span>
+                                <strong>{item.passed ? 'PASS' : 'FAIL'}</strong>
+                              </div>
+                              <pre>{item.stderr || item.stdout || 'No diagnostic output.'}</pre>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {result.trustedTestsProvided && (
+                      <div className="oracle-card">
+                        <div>
+                          <span>Hidden/trusted initial</span>
+                          <strong>{selectedCandidate.trustedInitial?.passed ? 'PASS' : 'FAIL'}</strong>
+                        </div>
+                        <div className="oracle-arrow">→</div>
+                        <div>
+                          <span>Hidden/trusted final</span>
+                          <strong>{selectedCandidate.trustedFinal?.passed ? 'PASS' : 'FAIL'}</strong>
+                        </div>
+                        <div className={`oracle-outcome ${outcomeTone(selectedCandidate.interventionOutcome)}`}>
+                          {selectedCandidate.interventionOutcome || 'NO OUTCOME'}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="candidate-tabs">
+                      <div className="candidate-code">
+                        <div className="detail-label">Initial code</div>
+                        <AceEditor
+                          mode="python"
+                          theme={darkMode ? 'twilight' : 'textmate'}
+                          value={selectedCandidate.code}
+                          readOnly
+                          width="100%"
+                          height="300px"
+                          setOptions={{ useWorker: false, showPrintMargin: false }}
+                          fontSize={13}
+                        />
+                      </div>
+                      <div className="candidate-code">
+                        <div className="detail-label">
+                          {selectedCandidate.repair?.attempted ? 'Final code after intervention' : 'Final code · unchanged'}
+                        </div>
+                        <AceEditor
+                          mode="python"
+                          theme={darkMode ? 'twilight' : 'textmate'}
+                          value={selectedCandidate.repair?.code || selectedCandidate.code}
+                          readOnly
+                          width="100%"
+                          height="300px"
+                          setOptions={{ useWorker: false, showPrintMargin: false }}
+                          fontSize={13}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
-            <div className="candidate-detail">
-              <div className="candidate-detail-head">
+            <div className="suite-section">
+              <div className="suite-section-head">
                 <div>
-                  <span className="lab-kicker">Candidate #{selected + 1}</span>
-                  <h3>
-                    {shortModel(selectedCandidate.model)} ·{' '}
-                    {selectedCandidate.strategy === 'plan' ? 'Plan → Code' : 'Direct'}
-                  </h3>
+                  <span className="lab-kicker">Verifier provenance</span>
+                  <h3>Generated evidence suites</h3>
                 </div>
-                <span
-                  className={`verdict ${statusLabel(selectedCandidate)
-                    .toLowerCase()
-                    .replace(' ', '-')}`}
-                >
-                  {statusLabel(selectedCandidate)}
-                </span>
+                <span className="evidence-pill">Not ground truth</span>
               </div>
-
-              <div className="candidate-tabs">
-                <div className="candidate-code">
-                  <div className="detail-label">Generated code</div>
+              <p>
+                These suites drive controller decisions. Trusted tests, when supplied, are deliberately
+                excluded from this evidence and are used only for retrospective harm/recovery accounting.
+              </p>
+              {(result.testSuites || []).map((suite) => (
+                <details className="generated-tests" key={suite.id}>
+                  <summary>
+                    {suite.label} · {shortModel(suite.model)} · {suite.focus}
+                  </summary>
                   <AceEditor
                     mode="python"
                     theme={darkMode ? 'twilight' : 'textmate'}
-                    value={selectedCandidate.code}
+                    value={suite.tests}
                     readOnly
                     width="100%"
-                    height="330px"
+                    height="230px"
                     setOptions={{ useWorker: false, showPrintMargin: false }}
-                    fontSize={13}
+                    fontSize={12}
                   />
-                </div>
-
-                <div className="candidate-evidence">
-                  <div className="detail-label">Execution evidence</div>
-                  <div className="evidence-card">
-                    <div>
-                      <span>Entry point</span>
-                      <strong>{selectedCandidate.entryPoint || 'not detected'}</strong>
-                    </div>
-                    <div>
-                      <span>Sandbox</span>
-                      <strong>
-                        {selectedCandidate.execution?.configured === false
-                          ? 'not configured'
-                          : 'isolated'}
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Exit code</span>
-                      <strong>{selectedCandidate.execution?.exitCode ?? '—'}</strong>
-                    </div>
-                  </div>
-                  <pre className="execution-log">
-                    {selectedCandidate.execution?.stderr ||
-                      selectedCandidate.execution?.stdout ||
-                      'No execution output.'}
-                  </pre>
-                  {selectedCandidate.plan && (
-                    <>
-                      <div className="detail-label plan-label">Plan used</div>
-                      <div className="plan-preview">{selectedCandidate.plan}</div>
-                    </>
-                  )}
-                </div>
-              </div>
+                </details>
+              ))}
             </div>
-
-            <details className="generated-tests">
-              <summary>Inspect shared generated tests</summary>
-              <div className="generated-tests-note">
-                These tests were generated once using {shortModel(result.testModel)} and applied to
-                every candidate. Passing them does not establish semantic correctness.
-              </div>
-              <AceEditor
-                mode="python"
-                theme={darkMode ? 'twilight' : 'textmate'}
-                value={result.tests}
-                readOnly
-                width="100%"
-                height="260px"
-                setOptions={{ useWorker: false, showPrintMargin: false }}
-                fontSize={12}
-              />
-            </details>
           </div>
         )}
       </section>
